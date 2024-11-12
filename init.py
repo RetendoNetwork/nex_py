@@ -1,6 +1,7 @@
 import logger
+import errors
 
 logger_ = logger.init()
 
 async def init():
-	pass
+	errors.nexerrors()
