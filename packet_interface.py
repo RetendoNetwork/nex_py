@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
+from connection_interface import ConnectionInterface
+
 class PacketInterface(ABC):
     @abstractmethod
     def sender(self) -> ConnectionInterface:
