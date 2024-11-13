@@ -6,6 +6,7 @@ from packet_interface import PacketInterface
 from library_version import LibraryVersions
 from byte_stream_settings import ByteStreamSettings
 
+
 class EndpointInterface(ABC):
     @abstractmethod
     def access_key(self) -> str:

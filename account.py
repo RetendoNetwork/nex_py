@@ -1,5 +1,6 @@
 from typing import Optional
 
+
 class Account:
     def __init__(self, pid: Optional[int], username: str, password: str):
         """
