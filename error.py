@@ -1,5 +1,6 @@
 from result_codes import error_mask
 
+
 class Error(Exception):
     def __init__(self, result_code: int, message: str, packet=None):
         """

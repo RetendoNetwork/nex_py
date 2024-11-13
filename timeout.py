@@ -1,5 +1,6 @@
 import time
 
+
 class Timeout:
     def __init__(self):
         self._timeout = None

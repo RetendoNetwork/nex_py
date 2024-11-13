@@ -1,5 +1,6 @@
 from typing import Optional
 
+
 class HPPClient:
     def __init__(self, address: Optional[str], endpoint: 'HPPServer', pid: Optional[int] = None):
         """
