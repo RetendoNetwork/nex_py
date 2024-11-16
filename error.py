@@ -1,4 +1,4 @@
-from result_codes import error_mask
+from result_codes import error_mask, result_code_to_name
 
 
 class Error(Exception):
