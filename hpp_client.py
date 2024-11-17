@@ -1,8 +1,10 @@
 from typing import Optional
+from hpp_server import HPPServer
+from hpp_client import HPPClient
 
 
 class HPPClient:
-    def __init__(self, address: Optional[str], endpoint: 'HPPServer', pid: Optional[int] = None):
+    def __init__(self, address: Optional[str], endpoint: HPPServer, pid: Optional[int] = None):
         """
         Represents a single HPP client.
 
@@ -14,7 +16,7 @@ class HPPClient:
         self._endpoint = endpoint
         self._pid = pid
 
-    def endpoint(self) -> 'HPPServer':
+    def endpoint(self) -> HPPServer:
         """Returns the server the client is connecting to."""
         return self._endpoint
 
@@ -31,7 +33,7 @@ class HPPClient:
         self._pid = pid
 
     @staticmethod
-    def new_hpp_client(address: str, server: 'HPPServer') -> 'HPPClient':
+    def new_hpp_client(address: str, server: HPPServer) -> HPPClient:
         """
         Creates and returns a new client using the provided IP address and server.
 

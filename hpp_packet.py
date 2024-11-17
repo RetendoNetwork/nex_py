@@ -2,12 +2,14 @@ import hmac
 import hashlib
 import binascii
 from typing import Optional
+
 from hpp_client import HPPClient
 from connection_interface import ConnectionInterface
+from rmc_message import RMCMessage, RMCRequest
 
 
 class HPPPacket:
-    def __init__(self, sender: 'HPPClient', payload: Optional[bytes] = None):
+    def __init__(self, sender: HPPClient, payload: Optional[bytes] = None):
         self.sender = sender
         self.access_key_signature = b""
         self.password_signature = b""
@@ -94,14 +96,14 @@ class HPPPacket:
         mac = hmac.new(key, buffer, hashlib.md5)
         return mac.digest()
 
-    def rmc_message(self) -> Optional['RMCMessage']:
+    def rmc_message(self) -> Optional[RMCMessage]:
         return self.message
 
-    def set_rmc_message(self, message: 'RMCMessage') -> None:
+    def set_rmc_message(self, message: RMCMessage) -> None:
         self.message = message
 
     @staticmethod
-    def new_hpp_packet(client: 'HPPClient', payload: Optional[bytes] = None) -> 'HPPPacket':
+    def new_hpp_packet(client: HPPClient, payload: Optional[bytes] = None) -> 'HPPPacket':
         return HPPPacket(client, payload)
 
     def derive_kerberos_key(self, pid: int, password: bytes) -> bytes:

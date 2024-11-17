@@ -16,9 +16,9 @@ class RVType(ABC):
         pass
 
     @abstractmethod
-    def copy(self) -> 'RVType':
+    def copy(self) -> RVType:
         pass
 
     @abstractmethod
-    def equals(self, other: 'RVType') -> bool:
+    def equals(self, other: RVType) -> bool:
         pass

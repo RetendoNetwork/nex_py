@@ -4,10 +4,12 @@ from typing import List, Optional
 from connection_interface import ConnectionInterface
 from constants.stream_type import StreamType
 from timeout import Timeout
+from prudp_packet_interface import PRUDPPacketInterface
+from rmc_message import RMCMessage
 
 
 class PRUDPPacketInterface:
-    def copy(self) -> 'PRUDPPacketInterface':
+    def copy(self) -> PRUDPPacketInterface:
         pass
     
     def version(self) -> int:
@@ -16,10 +18,10 @@ class PRUDPPacketInterface:
     def bytes(self) -> List[bytearray]:
         pass
     
-    def set_sender(self, sender: 'ConnectionInterface') -> None:
+    def set_sender(self, sender: ConnectionInterface) -> None:
         pass
     
-    def sender(self) -> 'ConnectionInterface':
+    def sender(self) -> ConnectionInterface:
         pass
     
     def flags(self) -> int:
@@ -37,10 +39,10 @@ class PRUDPPacketInterface:
     def packet_type(self) -> int:
         pass
     
-    def set_source_virtual_port_stream_type(self, stream_type: 'StreamType') -> None:
+    def set_source_virtual_port_stream_type(self, stream_type: StreamType) -> None:
         pass
     
-    def source_virtual_port_stream_type(self) -> 'StreamType':
+    def source_virtual_port_stream_type(self) -> StreamType:
         pass
     
     def set_source_virtual_port_stream_id(self, port: int) -> None:
@@ -49,10 +51,10 @@ class PRUDPPacketInterface:
     def source_virtual_port_stream_id(self) -> int:
         pass
     
-    def set_destination_virtual_port_stream_type(self, stream_type: 'StreamType') -> None:
+    def set_destination_virtual_port_stream_type(self, stream_type: StreamType) -> None:
         pass
     
-    def destination_virtual_port_stream_type(self) -> 'StreamType':
+    def destination_virtual_port_stream_type(self) -> StreamType:
         pass
     
     def set_destination_virtual_port_stream_id(self, port: int) -> None:
@@ -85,10 +87,10 @@ class PRUDPPacketInterface:
     def set_payload(self, payload: List[bytearray]) -> None:
         pass
     
-    def rmc_message(self) -> 'RMCMessage':
+    def rmc_message(self) -> RMCMessage:
         pass
     
-    def set_rmc_message(self, message: 'RMCMessage') -> None:
+    def set_rmc_message(self, message: RMCMessage) -> None:
         pass
     
     def send_count(self) -> int:
@@ -103,10 +105,10 @@ class PRUDPPacketInterface:
     def set_sent_at(self, time: time.time) -> None:
         pass
     
-    def get_timeout(self) -> Optional['Timeout']:
+    def get_timeout(self) -> Optional[Timeout]:
         pass
     
-    def set_timeout(self, timeout: 'Timeout') -> None:
+    def set_timeout(self, timeout: Timeout) -> None:
         pass
     
     def decode(self) -> Optional[Exception]:
@@ -115,7 +117,7 @@ class PRUDPPacketInterface:
     def set_signature(self, signature: List[bytearray]) -> None:
         pass
     
-    def calculate_connection_signature(self, addr: 'net.Addr') -> List[bytearray]:
+    def calculate_connection_signature(self, addr: 'net.addr') -> List[bytearray]:
         pass
     
     def calculate_signature(self, session_key: List[bytearray], connection_signature: List[bytearray]) -> List[bytearray]:
