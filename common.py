@@ -1,8 +1,8 @@
-from result_codes import ResultNames, error_mask
-import streams
 import datetime, time
 
 from nex_logger.logger import Logger
+from result_codes import ResultNames, error_mask
+import streams
 
 
 class RMCError(Exception):

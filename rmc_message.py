@@ -1,6 +1,6 @@
 import struct
-import streams
 
+import streams
 from endpoint_interface import EndpointInterface
 
 

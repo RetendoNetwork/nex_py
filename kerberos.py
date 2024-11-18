@@ -1,10 +1,10 @@
-
 from Crypto.Cipher import ARC4
-import streams
 import struct
 import secrets
 import hashlib
 import hmac
+
+import streams
 
 
 class KeyDerivationOld:
