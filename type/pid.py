@@ -1,4 +1,5 @@
 import struct
+
 from readable import Readable
 from writable import Writable
 
