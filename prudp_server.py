@@ -8,6 +8,7 @@ from websockets import serve
 from collections import defaultdict
 from threading import Lock
 
+from nex_logger.logger import Logger
 from constants.prudp_packet_flags import PACKET_FLAG_HAS_SIZE, PACKET_FLAG_RELIABLE, PACKET_FLAG_NEEDS_ACK
 from library_version import LibraryVersions
 from byte_stream_settings import ByteStreamSettings
@@ -15,9 +16,6 @@ from prudp_v0_settings import PRUDPV0Settings
 from prudp_v1_settings import PRUDPV1Settings
 from mutex_map import MutexMap
 
-
-import logging
-logger = logging.getLogger(__name__)
 
 # Constants (to be adjusted based on the original Go constants)
 STREAM_TYPE_RELAY = 1
@@ -44,7 +42,7 @@ class PRUDPServer:
 
     def bind_prudp_endpoint(self, endpoint):
         if endpoint.stream_id in self.endpoints:
-            logger.warning(f"Tried to bind already existing PRUDPEndPoint {endpoint.stream_id}")
+            Logger.warning(f"Tried to bind already existing PRUDPEndPoint {endpoint.stream_id}")
             return
         endpoint.server = self
         self.endpoints[endpoint.stream_id] = endpoint
@@ -87,7 +85,7 @@ class PRUDPServer:
     async def process_packet(self, packet, address):
         stream_id = struct.unpack("!H", packet[:2])[0]  # Example unpacking
         if stream_id not in self.endpoints:
-            logger.warning(f"Client {address} trying to connect to unbound PRUDPEndPoint {stream_id}")
+            Logger.warning(f"Client {address} trying to connect to unbound PRUDPEndPoint {stream_id}")
             return
 
         endpoint = self.endpoints[stream_id]
