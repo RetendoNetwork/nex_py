@@ -1,7 +1,0 @@
-semver==3.0.2
-setuptools==75.5.0
-reflect==0.3.0
-strconv==0.4.2
-cryptography==1.17.1
-websockets==14.1
-anynet==1.1.0

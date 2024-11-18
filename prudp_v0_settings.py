@@ -19,7 +19,3 @@ class PRUDPV0Settings:
         self.signature_calculator = signature_calculator
         self.data_signature_calculator = data_signature_calculator
         self.checksum_calculator = checksum_calculator
-
-
-def new_prudp_v0_settings() -> PRUDPV0Settings:
-    return PRUDPV0Settings()

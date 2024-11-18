@@ -79,7 +79,3 @@ class PID:
             f"{indentation_values}pid: {self.pid}\n"
             f"{indentation_end}}}"
         )
-    
-    @staticmethod
-    def new_pid(input: int):
-        return PID(input)

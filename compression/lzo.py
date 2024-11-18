@@ -51,9 +51,3 @@ class LZO:
         Returns a copy of the LZO compression algorithm.
         """
         return LZO()
-
-def new_lzo_compression():
-    """
-    Returns a new instance of the LZO compression algorithm.
-    """
-    return LZO()

@@ -41,11 +41,6 @@ class LibraryVersion:
         """Creates a new LibraryVersion with a game-specific patch."""
         return LibraryVersion(major, minor, patch, game_specific_patch)
 
-    @staticmethod
-    def new_library_version(major: int, minor: int, patch: int) -> 'LibraryVersion':
-        """Creates a new LibraryVersion without a game-specific patch."""
-        return LibraryVersion(major, minor, patch)
-
 
 class LibraryVersions:
     def __init__(self):
@@ -68,8 +63,3 @@ class LibraryVersions:
         self.messaging = version.copy()
         self.utility = version.copy()
         self.nat_traversal = version.copy()
-
-    @staticmethod
-    def new_library_versions() -> 'LibraryVersions':
-        """Creates a new set of LibraryVersions."""
-        return LibraryVersions()

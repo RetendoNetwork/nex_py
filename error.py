@@ -28,18 +28,3 @@ class Error(Exception):
 
         # Return a formatted string with result code name and message
         return f"[{result_code_to_name(result_code)}] {self.message}"
-
-def new_error(result_code: int, message: str) -> Error:
-    """
-    Creates a new NEX error with a result code.
-    
-    :param result_code: The result code.
-    :param message: The error message.
-    
-    :return: A new instance of the custom Error.
-    """
-    if result_code & error_mask == 0:
-        # Set the MSB to mark the result as an error
-        result_code |= error_mask
-
-    return Error(result_code, message)

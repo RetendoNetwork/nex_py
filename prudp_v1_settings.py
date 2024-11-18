@@ -10,7 +10,3 @@ class PRUDPV1Settings:
         self.legacy_connection_signature = legacy_connection_signature
         self.connection_signature_calculator = connection_signature_calculator
         self.signature_calculator = signature_calculator
-
-
-def new_prudp_v1_settings() -> PRUDPV1Settings:
-    return PRUDPV1Settings()

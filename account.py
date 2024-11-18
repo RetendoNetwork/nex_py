@@ -14,16 +14,3 @@ class Account:
         self.pid = pid
         self.username = username
         self.password = password
-
-    @staticmethod
-    def new_account(pid: Optional[int], username: str, password: str) -> 'Account':
-        """
-        Creates a new Account instance.
-        
-        :param pid: The PID of the account.
-        :param username: The username for the account.
-        :param password: The password for the account.
-        
-        :return: A new Account instance.
-        """
-        return Account(pid, username, password)

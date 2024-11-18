@@ -15,8 +15,3 @@ class Timeout:
     def rto(self):
         """Gets the timeout field of this instance"""
         return self._timeout
-    
-    @staticmethod
-    def new_timeout():
-        """Creates a new Timeout instance"""
-        return Timeout()

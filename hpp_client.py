@@ -31,15 +31,3 @@ class HPPClient:
     def set_pid(self, pid: int):
         """Sets the client's NEX PID."""
         self._pid = pid
-
-    @staticmethod
-    def new_hpp_client(address: str, server: HPPServer) -> HPPClient:
-        """
-        Creates and returns a new client using the provided IP address and server.
-
-        :param address: The client's IP address as a string.
-        :param server: The server the client is connecting to.
-        
-        :return: A new HPPClient instance.
-        """
-        return HPPClient(address=address, endpoint=server)

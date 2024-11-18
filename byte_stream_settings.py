@@ -10,8 +10,3 @@ class ByteStreamSettings:
         self.string_length_size = string_length_size
         self.pid_size = pid_size
         self.use_structure_header = use_structure_header
-
-    @classmethod
-    def new_byte_stream_settings(cls):
-        """Returns a new instance of ByteStreamSettings with default values."""
-        return cls()

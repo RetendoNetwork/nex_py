@@ -2,8 +2,7 @@ from result_codes import ResultNames, error_mask
 import streams
 import datetime, time
 
-import logging
-logger = logging.getLogger(__name__)
+from nex_logger.logger import Logger
 
 
 class RMCError(Exception):
@@ -95,7 +94,7 @@ class Structure:
 				
 				version = stream.u8()
 				if version > max_version:
-					logger.warning(
+					Logger.warning(
 						"Struct %s version is higher than expected (%i > %i)",
 						cls.__name__, version, max_version
 					)
@@ -104,7 +103,7 @@ class Structure:
 				cls.load(self, substream, version)
 				
 				if not substream.eof():
-					logger.warning(
+					Logger.warning(
 						"Struct %s has unexpected size (got %i bytes, but only %i were read)",
 						cls.__name__, substream.size(), substream.tell()
 					)

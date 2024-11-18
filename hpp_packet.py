@@ -102,10 +102,6 @@ class HPPPacket:
     def set_rmc_message(self, message: RMCMessage) -> None:
         self.message = message
 
-    @staticmethod
-    def new_hpp_packet(client: HPPClient, payload: Optional[bytes] = None) -> 'HPPPacket':
-        return HPPPacket(client, payload)
-
     def derive_kerberos_key(self, pid: int, password: bytes) -> bytes:
         # Placeholder for the actual implementation of key derivation logic
         return password  # You can replace this with the actual key derivation logic

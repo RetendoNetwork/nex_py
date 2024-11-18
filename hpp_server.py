@@ -136,6 +136,3 @@ class HPPServer:
     @staticmethod
     def create_error_response():
         return b"Error Response"
-    
-    def new_hpp_server():
-        return HPPServer()

@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="nex_retendo",
-    version="1.1.3",
+    version="1.1.2",
     packages=find_packages(),
     install_requires=[
         'grpcio-tools',

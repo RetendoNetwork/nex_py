@@ -66,6 +66,3 @@ class MutexMap:
                 if callback:
                     callback(key, value)
                 del self.real[key]
-
-    def new_mutex_map():
-        return MutexMap()
