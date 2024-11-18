@@ -2,15 +2,22 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name="nex",
-    version="1.1.1",
+    name="nex_retendo",
+    version="1.1.3",
     packages=find_packages(),
     install_requires=[
         'grpcio-tools',
+        'semver',
+        'setuptools',
+        'reflect',
+        'strconv',
+        'cryptography',
+        'websockets',
+        'anynet'
     ],
     author="Retendo Contributors",
     description="NEX Library of NEX Server for Wii U & 3DS.", 
-    long_description=open('README.md').read(),
+    long_description=open('README.md', 'r', encoding='utf-8').read(),
     long_description_content_type="text/markdown",
     classifiers=[
         "Programming Language :: Python :: 3",
