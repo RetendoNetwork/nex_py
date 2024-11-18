@@ -9,5 +9,5 @@
 - Then, open the cmd on this folder and run `git clone https://github.com/RetendoNetwork/nex.git`.
 - After, on the cmd run `cd nex` and run `pip install .`
 - And now you have Retendo Network NEX with Python.
-> [!IMPORTANT]  
+> [!TIP]  
 > If it's doesn't work to import NEX Library, try to run on the cmd `pip show nex`.
