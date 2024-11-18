@@ -16,8 +16,8 @@
 - [ ] Quazal Support
 - [ ] HPP Servers
 - [ ] PRUDP Severs
-- [ ] Kerberos Authentication
-- [ ] RMC
+- [x] Kerberos Authentication
+- [x] RMC
 
 # Example for use NEX
 ```py
