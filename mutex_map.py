@@ -1,6 +1,7 @@
 import threading
 from typing import Callable, Dict, TypeVar, Optional
 
+# Define a generic type V & K
 K = TypeVar('K')
 V = TypeVar('V')
 

@@ -1,10 +1,12 @@
 from typing import Optional
+
 from hpp_server import HPPServer
 from hpp_client import HPPClient
+from type.pid import PID
 
 
 class HPPClient:
-    def __init__(self, address: Optional[str], endpoint: HPPServer, pid: Optional[int] = None):
+    def __init__(self, address: Optional[str], endpoint: HPPServer):
         """
         Represents a single HPP client.
 
@@ -14,7 +16,7 @@ class HPPClient:
         """
         self._address = address
         self._endpoint = endpoint
-        self._pid = pid
+        self._pid = PID()
 
     def endpoint(self) -> HPPServer:
         """Returns the server the client is connecting to."""
@@ -28,6 +30,6 @@ class HPPClient:
         """Returns the client's NEX PID."""
         return self._pid
 
-    def set_pid(self, pid: int):
+    def set_pid(self, pid: PID):
         """Sets the client's NEX PID."""
         self._pid = pid

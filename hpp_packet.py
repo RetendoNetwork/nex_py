@@ -14,8 +14,8 @@ class HPPPacket:
         self.access_key_signature = b""
         self.password_signature = b""
         self.payload = payload
-        self.message = None
-        self.processed = False
+        self.message = RMCMessage
+        self.processed = bool
 
         if payload is not None:
             rmc_message = RMCRequest(sender.endpoint())
@@ -24,7 +24,7 @@ class HPPPacket:
                 raise Exception(f"Failed to decode HPP request: {err}")
             self.set_rmc_message(rmc_message)
 
-    def sender(self) -> 'ConnectionInterface':
+    def sender(self) -> ConnectionInterface:
         return self.sender
 
     def payload(self) -> bytes:

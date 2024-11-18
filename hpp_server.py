@@ -18,12 +18,12 @@ class HPPServer:
         self.server = None
         self.access_key = ""
         self.library_versions = LibraryVersions()
-        self.byte_stream_settings = ByteStreamSettings()
         self.data_handlers = []
         self.error_event_handlers = []
+        self.byte_stream_settings = ByteStreamSettings()
         self.account_details_by_pid = None
         self.account_details_by_username = None
-        self.use_verbose_rmc = False
+        self.use_verbose_rmc = bool
 
     def register_service_protocol(self, protocol: 'ServiceProtocol'):
         protocol.set_endpoint(self)
@@ -90,8 +90,7 @@ class HPPServer:
 
         return self.handle_packet_response(hpp_packet)
 
-    def handle_packet_response(self, hpp_packet: 'HPPPacket'):
-        # Vous pouvez ajuster ici pour gérer la réponse
+    def handle_packet_response(self, hpp_packet: HPPPacket):
         if hpp_packet.payload:
             return hpp_packet.payload
         return None
@@ -99,13 +98,13 @@ class HPPServer:
     def listen(self, port):
         server_address = ('', port)
         self.server = HTTPServer(server_address, self)
-        print(f"Starting server on port {port}...")
+        print(f"Starting server on port {port}..")
         self.server.serve_forever()
 
     def listen_secure(self, port, cert_file, key_file):
-        pass
+        pass # TODO - Add HPP Server Listen with secure TLS server.
 
-    def send(self, packet: 'PacketInterface'):
+    def send(self, packet: PacketInterface):
         if isinstance(packet, HPPPacket):
             packet.message['IsHPP'] = True
             packet.payload = packet.message['Bytes']()
@@ -124,7 +123,7 @@ class HPPServer:
     def byte_stream_settings(self):
         return self.byte_stream_settings
 
-    def set_byte_stream_settings(self, byte_stream_settings: 'ByteStreamSettings'):
+    def set_byte_stream_settings(self, byte_stream_settings: ByteStreamSettings):
         self.byte_stream_settings = byte_stream_settings
 
     def use_verbose_rmc(self):

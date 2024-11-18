@@ -1,3 +1,4 @@
+from typing import Optional
 import semver
 
 
@@ -44,14 +45,14 @@ class LibraryVersion:
 
 class LibraryVersions:
     def __init__(self):
-        self.main: LibraryVersion = None
-        self.datastore: LibraryVersion = None
-        self.matchmaking: LibraryVersion = None
-        self.ranking: LibraryVersion = None
-        self.ranking2: LibraryVersion = None
-        self.messaging: LibraryVersion = None
-        self.utility: LibraryVersion = None
-        self.nat_traversal: LibraryVersion = None
+        self.main: Optional[LibraryVersion] = None
+        self.datastore: Optional[LibraryVersion] = None
+        self.matchmaking: Optional[LibraryVersion] = None
+        self.ranking: Optional[LibraryVersion] = None
+        self.ranking2: Optional[LibraryVersion] = None
+        self.messaging: Optional[LibraryVersion] = None
+        self.utility: Optional[LibraryVersion] = None
+        self.nat_traversal: Optional[LibraryVersion] = None
 
     def set_default(self, version: LibraryVersion):
         """Sets the default NEX protocol versions for all components."""
