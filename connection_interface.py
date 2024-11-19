@@ -1,8 +1,8 @@
 import socket
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from endpoint_interface import EndpointInterface
+from type.pid import PID
 
 
 class ConnectionInterface(ABC):
@@ -17,11 +17,11 @@ class ConnectionInterface(ABC):
         pass
 
     @abstractmethod
-    def pid(self) -> Optional[int]:
+    def pid(self) -> PID:
         """Returns the PID of the connection."""
         pass
 
     @abstractmethod
-    def set_pid(self, pid: Optional[int]):
+    def set_pid(self, pid: PID):
         """Sets the PID for the connection."""
         pass

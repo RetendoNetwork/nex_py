@@ -1,153 +1,184 @@
 from anynet import streams
+from crunch import Buffer
 
-import common
+from library_version import LibraryVersions
 
 
-class StreamOut(streams.StreamOut):
-	def __init__(self, settings):
-		super().__init__("<")
-		self.settings = settings
-		
-	def pid(self, value):
-		if self.settings["nex.pid_size"] == 8:
-			self.u64(value)
-		else:
-			self.u32(value)
-			
-	def result(self, result):
-		self.u32(result.code())
+class StreamIn:
+    def __init__(self, data, library_versions: LibraryVersions, settings: 'StreamSettings'):
+        self.buffer = Buffer(data)
+        self.library_versions = library_versions
+        self.settings = settings
 
-	def list(self, list, func):
-		self.u32(len(list))
-		self.repeat(list, func)
-		
-	def map(self, map, keyfunc, valuefunc):
-		self.u32(len(map))
-		for key, value in map.items():
-			keyfunc(key)
-			valuefunc(value)
-		
-	def string(self, string):
-		if string is None:
-			self.u16(0)
-		else:
-			data = (string + "\0").encode("utf8")
-			self.u16(len(data))
-			self.write(data)
-			
-	def stationurl(self, url):
-		self.string(str(url))
+    def string_length_size(self):
+        size = 2
+        if self.settings:
+            size = self.settings.string_length_size
+        return size
+
+    def pid_size(self):
+        size = 4
+        if self.settings:
+            size = self.settings.pid_size
+        return size
+
+    def use_structure_header(self):
+        use_structure_header = False
+        if self.settings:
+            use_structure_header = self.settings.use_structure_header
+        return use_structure_header
+
+    def remaining(self):
+        return len(self.buffer.bytes()[self.buffer.byte_offset():])
+
+    def read_remaining(self):
+        return self.read(self.remaining())
+
+    def read(self, length):
+        if self.remaining() < length:
+            raise ValueError("Read is out of bounds")
+        return self.buffer.read_bytes_next(length)
+
+    def read_uint8(self):
+        if self.remaining() < 1:
+            raise ValueError("Not enough data to read uint8")
+        return self.buffer.read_byte_next()
+
+    def read_uint16_le(self):
+        if self.remaining() < 2:
+            raise ValueError("Not enough data to read uint16")
+        return self.buffer.read_u16_le_next(1)[0]
+
+    def read_uint32_le(self):
+        if self.remaining() < 4:
+            raise ValueError("Not enough data to read uint32")
+        return self.buffer.read_u32_le_next(1)[0]
+
+    def read_uint64_le(self):
+        if self.remaining() < 8:
+            raise ValueError("Not enough data to read uint64")
+        return self.buffer.read_u64_le_next(1)[0]
+
+    def read_int8(self):
+        if self.remaining() < 1:
+            raise ValueError("Not enough data to read int8")
+        return self.buffer.read_byte_next()
+
+    def read_int16_le(self):
+        if self.remaining() < 2:
+            raise ValueError("Not enough data to read int16")
+        return self.buffer.read_u16_le_next(1)[0]
+
+    def read_int32_le(self):
+        if self.remaining() < 4:
+            raise ValueError("Not enough data to read int32")
+        return self.buffer.read_u32_le_next(1)[0]
+
+    def read_int64_le(self):
+        if self.remaining() < 8:
+            raise ValueError("Not enough data to read int64")
+        return self.buffer.read_u64_le_next(1)[0]
+
+    def read_float32_le(self):
+        if self.remaining() < 4:
+            raise ValueError("Not enough data to read float32")
+        return self.buffer.read_f32_le_next(1)[0]
+
+    def read_float64_le(self):
+        if self.remaining() < 8:
+            raise ValueError("Not enough data to read float64")
+        return self.buffer.read_f64_le_next(1)[0]
+
+    def read_bool(self):
+        if self.remaining() < 1:
+            raise ValueError("Not enough data to read bool")
+        return self.buffer.read_byte_next() == 1
+
+class StreamOut:
+    def __init__(self, library_versions, settings):
+        self.buffer = Buffer()
+        self.library_versions = library_versions
+        self.settings = settings
+
+    def string_length_size(self):
+        size = 2
+        if self.settings:
+            size = self.settings.string_length_size
+        return size
+
+    def pid_size(self):
+        size = 4
+        if self.settings:
+            size = self.settings.pid_size
+        return size
+
+    def use_structure_header(self):
+        use_structure_header = False
+        if self.settings:
+            use_structure_header = self.settings.use_structure_header
+        return use_structure_header
+
+    def copy_new(self):
+        return StreamOut(self.library_versions, self.settings)
+
+    def write(self, data):
+        self.buffer.grow(len(data))
+        self.buffer.write_bytes_next(data)
+
+    def write_uint8(self, u8):
+        self.buffer.grow(1)
+        self.buffer.write_byte_next(u8)
+
+    def write_uint16_le(self, u16):
+        self.buffer.grow(2)
+        self.buffer.write_u16_le_next([u16])
+
+    def write_uint32_le(self, u32):
+        self.buffer.grow(4)
+        self.buffer.write_u32_le_next([u32])
+
+    def write_uint64_le(self, u64):
+        self.buffer.grow(8)
+        self.buffer.write_u64_le_next([u64])
+
+    def write_int8(self, s8):
+        self.buffer.grow(1)
+        self.buffer.write_byte_next(s8)
+
+    def write_int16_le(self, s16):
+        self.buffer.grow(2)
+        self.buffer.write_u16_le_next([s16])
+
+    def write_int32_le(self, s32):
+        self.buffer.grow(4)
+        self.buffer.write_u32_le_next([s32])
+
+    def write_int64_le(self, s64):
+        self.buffer.grow(8)
+        self.buffer.write_u64_le_next([s64])
+
+    def write_float32_le(self, f32):
+        self.buffer.grow(4)
+        self.buffer.write_f32_le_next([f32])
+
+    def write_float64_le(self, f64):
+        self.buffer.grow(8)
+        self.buffer.write_f64_le_next([f64])
+
+    def write_bool(self, b):
+        b_var = 1 if b else 0
+        self.buffer.grow(1)
+        self.buffer.write_byte_next(b_var)
 	
-	def datetime(self, datetime):
-		self.u64(datetime.value())
-		
-	def buffer(self, data):
-		self.u32(len(data))
-		self.write(data)
-		
-	def qbuffer(self, data):
-		self.u16(len(data))
-		self.write(data)
-		
-	def add(self, inst):
-		inst.encode(self)
-		
-	def anydata(self, inst):
-		holder = common.DataHolder()
-		holder.data = inst
-		self.add(holder)
-		
-	def variant(self, value):
-		# We have to check for bool before int,
-		# because bool is a subclass of int
-		if value is None: self.u8(0)
-		elif isinstance(value, bool):
-			self.u8(3)
-			self.bool(value)
-		elif isinstance(value, int):
-			if value < 0:
-				self.u8(1)
-				self.s64(value)
-			else:
-				self.u8(6)
-				self.u64(value)
-		elif isinstance(value, float):
-			self.u8(2)
-			self.double(value)
-		elif isinstance(value, str):
-			self.u8(4)
-			self.string(value)
-		elif isinstance(value, common.DateTime):
-			self.u8(5)
-			self.datetime(value)
-		else:
-			raise TypeError("Type is not compatible with 'variant'")
-		
-		
-class StreamIn(streams.StreamIn):
-	def __init__(self, data, settings):
-		super().__init__(data, "<")
-		self.settings = settings
-		
-	def pid(self):
-		if self.settings["nex.pid_size"] == 8:
-			return self.u64()
-		return self.u32()
-		
-	def result(self):
-		return common.Result(self.u32())
-
-	def list(self, func):
-		return self.repeat(func, self.u32())
-		
-	def map(self, keyfunc, valuefunc):
-		map = {}
-		for i in range(self.u32()):
-			key = self.callback(keyfunc)
-			value = self.callback(valuefunc)
-			map[key] = value
-		return map
-		
-	def repeat(self, func, count):
-		return [self.callback(func) for i in range(count)]
-		
-	def callback(self, func):
-		if isinstance(func, type) and issubclass(func, common.Structure):
-			return self.extract(func)
-		return func()
-		
-	def string(self):
-		length = self.u16()
-		if length:
-			return self.read(length).decode("utf8")[:-1] #Remove null-terminator
-			
-	def stationurl(self):
-		return common.StationURL.parse(self.string())
-		
-	def datetime(self):
-		return common.DateTime(self.u64())
-		
-	def buffer(self): return self.read(self.u32())
-	def qbuffer(self): return self.read(self.u16())
-		
-	def substream(self):
-		return StreamIn(self.buffer(), self.settings)
-	
-	def extract(self, cls):
-		inst = cls()
-		inst.decode(self)
-		return inst
-		
-	def anydata(self):
-		return self.extract(common.DataHolder).data
-		
-	def variant(self):
-		type = self.u8()
-		if type == 0: return None
-		elif type == 1: return self.s64()
-		elif type == 2: return self.double()
-		elif type == 3: return self.bool()
-		elif type == 4: return self.string()
-		elif type == 5: return self.datetime()
-		elif type == 6: return self.u64()
-		raise ValueError("Variant has invalid type id")
+class StreamSettings:
+    def __init__(self, string_length_size=2, pid_size=4, use_structure_header=False):
+        """
+        Initializes the ByteStreamSettings with default or provided values.
+        
+        :param string_length_size: The size for the string length (default is 2).
+        :param pid_size: The size for the PID (default is 4).
+        :param use_structure_header: Flag indicating if the structure header should be used (default is False).
+        """
+        self.string_length_size = string_length_size
+        self.pid_size = pid_size
+        self.use_structure_header = use_structure_header

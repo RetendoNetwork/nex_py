@@ -4,6 +4,7 @@ import time
 from typing import List
 
 from prudp_connection import PRUDPConnection
+from prudp_server import PRUDPServer
 
 PING_INTERVAL = 5
 PING_WAIT = 10

@@ -1,8 +1,9 @@
 from typing import Optional
+from type.pid import PID
 
 
 class Account:
-    def __init__(self, pid: Optional[int], username: str, password: str):
+    def __init__(self, pid: PID, username: str, password: str):
         """
         Represents a game server account.
         

@@ -1,4 +1,3 @@
-import socket
 from typing import Callable, Optional
 
 

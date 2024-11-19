@@ -7,12 +7,16 @@ from type.pid import PID
 from mutex_map import MutexMap
 from constants.stream_type import StreamType
 from counter import Counter
+from rtt import RTT
+from streams import StreamSettings
+from sliding_window import SlidingWindow
+from packet_dispatch_queue import PacketDispatchQueue
 
 
 class PRUDPConnection:
     def __init__(self, socket):
         self.socket = socket  # * The connection's parent socket
-        self.endpoint = None  # * The PRUDP endpoint the connection is connected to
+        self.endpoint = None   # * The PRUDP endpoint the connection is connected to
         self.connection_state = "StateNotConnected"  # * Connection State
         self.id = 0  # * Connection ID
         self.session_id = 0  # * Random value generated at the start of the session.
@@ -22,7 +26,7 @@ class PRUDPConnection:
         self.default_prudp_version = int  # * The PRUDP version
         self.stream_type = StreamType()  # * Stream type (PRUDP stream)
         self.stream_id = 0  # * Stream ID
-        self.stream_settings = None  # * Stream settings for this virtual connection
+        self.stream_settings = StreamSettings   # * Stream settings for this virtual connection
         self.signature = []  # * Connection signature for packets
         self.server_connection_signature = []  # * Signature for server-side packets
         self.unreliable_packet_base_key = []  # * Base key for encrypting unreliable DATA packets
@@ -152,35 +156,3 @@ class PRUDPConnection:
 
     def send_ping(self):
         pass  # Pseudo-code for sending a ping packet
-
-
-class RTT:
-    def __init__(self):
-        self.last_ping = 0
-        self.last_response = 0
-
-    def update(self, ping_time):
-        self.last_ping = ping_time
-        self.last_response = time.time()
-
-
-class SlidingWindow:
-    def __init__(self):
-        self.sequence_id_counter = Counter(0)
-        self.stream_settings = None  # Stream settings for this window
-        self.cipher_key = None
-
-    def set_cipher_key(self, key):
-        self.cipher_key = key
-
-
-class PacketDispatchQueue:
-    def __init__(self):
-        self.queue = []
-
-    def enqueue(self, packet):
-        self.queue.append(packet)
-
-    def dequeue(self):
-        if self.queue:
-            return self.queue.pop(0)

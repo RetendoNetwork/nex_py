@@ -26,7 +26,7 @@ class HPPClient:
         """Returns the client's address."""
         return self._address
 
-    def pid(self) -> Optional[int]:
+    def pid(self) -> PID:
         """Returns the client's NEX PID."""
         return self._pid
 

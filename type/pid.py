@@ -1,82 +1,49 @@
-import struct
-
 from readable import Readable
 from writable import Writable
 
-
 class PID:
-    """
-    PID represents a unique identifier for a user.
-    Its size depends on the client version:
-    - Legacy clients (WiiU/3DS) use a uint32.
-    - Modern clients (Nintendo Switch) use a uint64.
-    The value is always stored as a uint64.
-    """
+    def __init__(self, value):
+        self.value = value
 
-    def __init__(self, pid: int):
-        self.pid = pid
-
-    def write_to(self):
-        """
-        Writes the PID to the writable object.
-        """
-        if Writable.pid_size() == 8:
-            Writable.write_primitive_uint64_le(self.pid)
+    def write_to(self, writable: Writable):
+        if writable.pid_size() == 8:
+            writable.write_uint64_le(self.value)
         else:
-            Writable.write_primitive_uint32_le(self.legacy_value())
+            writable.write_uint32_le(self.value)
 
-    def extract_from(self):
-        """
-        Extracts the PID from the readable object.
-        """
-        try:
-            if Readable.pid_size() == 8:
-                self.pid = Readable.read_primitive_uint64_le()
-            else:
-                self.pid = Readable.read_primitive_uint32_le()
-        except Exception as e:
-            raise e
+    def extract_from(self, readable: Readable):
+        if readable.pid_size() == 8:
+            self.value, err = readable.read_uint64_le()
+        else:
+            self.value, err = readable.read_uint32_le()
+
+        if err:
+            raise ValueError("Error reading PID")
+
+        return None
 
     def copy(self):
-        """
-        Returns a copy of the PID.
-        """
-        return PID(self.pid)
+        return PID(self.value)
 
     def equals(self, other):
-        """
-        Checks if another instance is equal to this one.
-        """
         if not isinstance(other, PID):
             return False
-        return self.pid == other.pid
+        return self.value == other.value
 
-    def value(self):
-        """
-        Returns the PID value as uint64.
-        """
-        return self.pid
+    def copy_ref(self):
+        return self.copy()
 
-    def legacy_value(self):
-        """
-        Returns the PID value as uint32.
-        """
-        return self.pid & 0xFFFFFFFF
+    def deref(self):
+        return self
 
     def __str__(self):
-        """
-        Returns a string representation of the PID.
-        """
         return self.format_to_string(0)
 
-    def format_to_string(self, indentation_level: int):
-        """
-        Returns a formatted string representation with indentation.
-        """
+    def format_to_string(self, indentation_level):
         indentation_values = "\t" * (indentation_level + 1)
         indentation_end = "\t" * indentation_level
-        return (
-            f"PID{{\n"
-            f"{indentation_values}pid: {self.pid}\n"
-            f"{indentation_end}}}"
-        )
+
+        return f"PID{{\n{indentation_values}pid: {self.value}\n{indentation_end}}}"
+
+def new_pid(input_value):
+    return PID(input_value)

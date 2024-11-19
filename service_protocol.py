@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Any
 
 from packet_interface import PacketInterface
 from endpoint_interface import EndpointInterface

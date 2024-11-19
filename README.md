@@ -14,14 +14,25 @@
 
 # Supported features
 - [ ] Quazal Support
-- [ ] HPP Servers
-- [ ] PRUDP Severs
+- [ ] HPP Support
+  - [x] HPP Client
+  - [ ] HPP Packet
+  - [ ] HPP Server
+- [ ] PRUDP Support
+  - [ ] PRUDP Connection
+  - [ ] PRUDP Packet
+  - [ ] PRUDP Servers
+  - [ ] UDP Transport
+  - [x] PRUDPv0 Packet
+  - [x] PRUDPv1 Packet
 - [x] Kerberos Authentication
 - [x] RMC
+  - [x] RMC Message
+  - [x] RMC Request
 
 # Example for use NEX
 ```py
-from nex.constants.pid import PID
+from nex.type.pid import PID
 from nex.account import Account
 import nex.rmc_message
 from nex.packet_interface import PacketInterface

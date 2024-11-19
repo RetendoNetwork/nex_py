@@ -4,7 +4,7 @@ from typing import Optional
 from error import Error
 from packet_interface import PacketInterface
 from library_version import LibraryVersions
-from byte_stream_settings import ByteStreamSettings
+from streams import StreamSettings
 
 
 class EndpointInterface(ABC):
@@ -29,12 +29,12 @@ class EndpointInterface(ABC):
         pass
 
     @abstractmethod
-    def byte_stream_settings(self) -> ByteStreamSettings:
+    def byte_stream_settings(self) -> StreamSettings:
         """Returns the byte stream settings for the endpoint."""
         pass
 
     @abstractmethod
-    def set_byte_stream_settings(self, settings: ByteStreamSettings):
+    def set_byte_stream_settings(self, settings: StreamSettings):
         """Sets the byte stream settings for the endpoint."""
         pass
 

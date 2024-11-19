@@ -1,137 +1,155 @@
-import socket
+from typing import Callable, List, Optional
 import threading
+import ssl
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from ssl import wrap_socket
+import socket
 import json
 
 from hpp_packet import HPPPacket
 from hpp_client import HPPClient
 from library_version import LibraryVersions
-from byte_stream_settings import ByteStreamSettings
+from streams import StreamSettings
 from service_protocol import ServiceProtocol
 from error import Error
 from packet_interface import PacketInterface
+from type.pid import PID
 
 
 class HPPServer:
     def __init__(self):
         self.server = None
-        self.access_key = ""
+        self.access_key = str
         self.library_versions = LibraryVersions()
         self.data_handlers = []
         self.error_event_handlers = []
-        self.byte_stream_settings = ByteStreamSettings()
+        self.byte_stream_settings = StreamSettings()
         self.account_details_by_pid = None
         self.account_details_by_username = None
-        self.use_verbose_rmc = bool
+        self.use_verbose_rmc = False
 
-    def register_service_protocol(self, protocol: 'ServiceProtocol'):
+    def register_service_protocol(self, protocol: ServiceProtocol):
         protocol.set_endpoint(self)
         self.on_data(protocol.handle_packet)
 
     def on_data(self, handler):
         self.data_handlers.append(handler)
 
-    def emit_error(self, error: 'Error'):
+    def emit_error(self, error):
         for handler in self.error_event_handlers:
-            threading.Thread(target=handler, args=(error,)).start()
+            handler(error)
 
-    def handle_request(self, req, client_addr):
-        if req['method'] != "POST":
-            return 400
+    def handle_request(self, request_handler: BaseHTTPRequestHandler):
+        if request_handler.command != "POST":
+            request_handler.send_response(400)
+            request_handler.end_headers()
+            return
 
-        pid_value = req['headers'].get("pid")
-        if pid_value is None:
-            return 400
+        pid_value = request_handler.headers.get("pid")
+        if not pid_value:
+            request_handler.send_response(400)
+            request_handler.end_headers()
+            return
 
-        token = req['headers'].get("token")
-        if token is None:
-            return 400
+        token = request_handler.headers.get("token")
+        if not token:
+            request_handler.send_response(400)
+            request_handler.end_headers()
+            return
 
-        access_key_signature = req['headers'].get("signature1")
-        if access_key_signature is None:
-            return 400
+        access_key_signature = request_handler.headers.get("signature1")
+        if not access_key_signature:
+            request_handler.send_response(400)
+            request_handler.end_headers()
+            return
 
-        password_signature = req['headers'].get("signature2")
-        if password_signature is None:
-            return 400
+        password_signature = request_handler.headers.get("signature2")
+        if not password_signature:
+            request_handler.send_response(400)
+            request_handler.end_headers()
+            return
 
         try:
             pid = int(pid_value)
         except ValueError:
-            return 400
+            request_handler.send_response(400)
+            request_handler.end_headers()
+            return
 
-        rmc_request_string = req['form'].get("file", "")
-        rmc_request_bytes = bytes(rmc_request_string, 'utf-8')
+        rmc_request_string = request_handler.rfile.read(int(request_handler.headers.get("Content-Length"))).decode()
+        tcp_addr = request_handler.client_address
 
-        try:
-            client = HPPClient(client_addr, self)
-            client.set_pid(pid)
-            hpp_packet = HPPPacket(client, rmc_request_bytes)
-        except Exception as e:
-            print(f"Error: {e}")
-            return 400
+        client = HPPClient(tcp_addr, self)
+        client.set_pid(PID(pid))
 
-        try:
-            hpp_packet.validate_access_key_signature(access_key_signature)
-        except Exception as e:
-            print(f"Error: {e}")
-            return 400
+        hpp_packet = HPPPacket(client, rmc_request_string.encode())
 
-        try:
-            hpp_packet.validate_password_signature(password_signature)
-        except Exception as e:
-            print(f"Error: {e}")
-            error_response = self.create_error_response()
-            return error_response
+        if not hpp_packet.validate_access_key_signature(access_key_signature):
+            request_handler.send_response(400)
+            request_handler.end_headers()
+            return
+
+        if not hpp_packet.validate_password_signature(password_signature):
+            request_handler.send_response(400)
+            request_handler.end_headers()
+            return
 
         for data_handler in self.data_handlers:
-            threading.Thread(target=data_handler, args=(hpp_packet,)).start()
+            data_handler(hpp_packet)
 
-        return self.handle_packet_response(hpp_packet)
-
-    def handle_packet_response(self, hpp_packet: HPPPacket):
         if hpp_packet.payload:
-            return hpp_packet.payload
-        return None
+            request_handler.send_response(200)
+            request_handler.end_headers()
+            request_handler.wfile.write(hpp_packet.payload)
 
     def listen(self, port):
-        server_address = ('', port)
-        self.server = HTTPServer(server_address, self)
-        print(f"Starting server on port {port}..")
+        self.server = HTTPServer(("0.0.0.0", port), self.create_handler())
+        print(f"Server started on port {port}")
         self.server.serve_forever()
 
-    def listen_secure(self, port, cert_file, key_file):
-        pass # TODO - Add HPP Server Listen with secure TLS server.
+    def listen_secure(self, port, certfile, keyfile):
+        self.server = HTTPServer(("0.0.0.0", port), self.create_handler())
+        self.server.socket = ssl.wrap_socket(
+            self.server.socket,
+            certfile=certfile,
+            keyfile=keyfile,
+            server_side=True,
+            ssl_version=ssl.PROTOCOL_TLSv1_1,
+        )
+        print(f"Secure server started on port {port}")
+        self.server.serve_forever()
 
     def send(self, packet: PacketInterface):
         if isinstance(packet, HPPPacket):
-            packet.message['IsHPP'] = True
-            packet.payload = packet.message['Bytes']()
+            packet.message.is_hpp = True
+            packet.payload = packet.message.Bytes()
+            packet.processed = True
 
-            packet.processed.put(True)
+    def create_handler(self):
+        server = self
 
-    def library_versions(self):
+        class HPPRequestHandler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                server.handle_request(self)
+
+        return HPPRequestHandler
+
+    def get_library_versions(self) -> LibraryVersions:
         return self.library_versions
 
-    def access_key(self):
-        return self.access_key
-
-    def set_access_key(self, access_key):
+    def set_access_key(self, access_key) -> str:
         self.access_key = access_key
 
-    def byte_stream_settings(self):
+    def get_access_key(self):
+        return self.access_key
+
+    def get_byte_stream_settings(self):
         return self.byte_stream_settings
 
-    def set_byte_stream_settings(self, byte_stream_settings: ByteStreamSettings):
+    def set_byte_stream_settings(self, byte_stream_settings) -> StreamSettings:
         self.byte_stream_settings = byte_stream_settings
 
     def use_verbose_rmc(self):
         return self.use_verbose_rmc
 
-    def enable_verbose_rmc(self, enable):
+    def enable_verbose_rmc(self, enable: bool):
         self.use_verbose_rmc = enable
-
-    @staticmethod
-    def create_error_response():
-        return b"Error Response"

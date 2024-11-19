@@ -1,11 +1,13 @@
+from typing import Optional
+import threading
 import hmac
 import hashlib
 import binascii
-from typing import Optional
 
 from hpp_client import HPPClient
 from connection_interface import ConnectionInterface
-from rmc_message import RMCMessage, RMCRequest
+from rmc import RMC, new_rmc_request
+from type.pid import PID
 
 
 class HPPPacket:
@@ -14,12 +16,12 @@ class HPPPacket:
         self.access_key_signature = b""
         self.password_signature = b""
         self.payload = payload
-        self.message = RMCMessage
-        self.processed = bool
+        self.message = RMC
+        self.processed = threading.Event()
 
         if payload is not None:
-            rmc_message = RMCRequest(sender.endpoint())
-            err = rmc_message.from_bytes(payload)
+            rmc_message = new_rmc_request(sender.endpoint())
+            err = RMC.from_bytes(payload)
             if err:
                 raise Exception(f"Failed to decode HPP request: {err}")
             self.set_rmc_message(rmc_message)
@@ -96,12 +98,12 @@ class HPPPacket:
         mac = hmac.new(key, buffer, hashlib.md5)
         return mac.digest()
 
-    def rmc_message(self) -> Optional[RMCMessage]:
+    def rmc_message(self) -> Optional[RMC]:
         return self.message
 
-    def set_rmc_message(self, message: RMCMessage) -> None:
+    def set_rmc_message(self, message: RMC) -> None:
         self.message = message
 
-    def derive_kerberos_key(self, pid: int, password: bytes) -> bytes:
+    def derive_kerberos_key(self, pid: PID, password: bytes) -> bytes:
         # Placeholder for the actual implementation of key derivation logic
         return password  # You can replace this with the actual key derivation logic

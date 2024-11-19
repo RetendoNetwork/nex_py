@@ -5,7 +5,7 @@ from connection_interface import ConnectionInterface
 from constants.stream_type import StreamType
 from timeout import Timeout
 from prudp_packet_interface import PRUDPPacketInterface
-from rmc_message import RMCMessage
+from rmc import RMCMessage
 
 
 class PRUDPPacketInterface:

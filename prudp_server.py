@@ -11,7 +11,7 @@ from threading import Lock
 from nex_logger.logger import Logger
 from constants.prudp_packet_flags import PACKET_FLAG_HAS_SIZE, PACKET_FLAG_RELIABLE, PACKET_FLAG_NEEDS_ACK
 from library_version import LibraryVersions
-from byte_stream_settings import ByteStreamSettings
+from streams import StreamSettings
 from prudp_v0_settings import PRUDPV0Settings
 from prudp_v1_settings import PRUDPV1Settings
 from mutex_map import MutexMap
@@ -35,7 +35,7 @@ class PRUDPServer:
         self.fragment_size = MAX_FRAGMENT_SIZE  # Default fragment size (1300 bytes)
         self.prudp_v1_connection_signature_key = bytearray(16)  # 16-byte array
         self.library_versions = LibraryVersions()  # Library versions instance
-        self.byte_stream_settings = ByteStreamSettings()  # Byte stream settings instance
+        self.byte_stream_settings = StreamSettings()  # Byte stream settings instance
         self.prudp_v0_settings = PRUDPV0Settings()  # PRUDPv0 settings instance
         self.prudp_v1_settings = PRUDPV1Settings()  # PRUDPv1 settings instance
         self.use_verbose_rmc = False  # Default value for verbose RMC flag
