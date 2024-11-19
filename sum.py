@@ -1,5 +1,9 @@
-def sum_slice(byte_slice):
-    total = 0
-    for value in byte_slice:
-        total += value
-    return total
+from typing import TypeVar, List, Union
+
+T = TypeVar('T', int, int)
+
+def sum(data: List[T]) -> T:
+    result = 0
+    for b in data:
+        result += b
+    return result

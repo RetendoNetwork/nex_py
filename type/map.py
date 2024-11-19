@@ -84,6 +84,3 @@ class Map:
             f"{indentation_values}{key}: {value}" for key, value in self.map.items()
         )
         return f"{{\n{items}\n{indentation_end}}}\n"
-
-def new_map():
-    return Map()

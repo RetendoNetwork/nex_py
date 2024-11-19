@@ -44,6 +44,3 @@ class PID:
         indentation_end = "\t" * indentation_level
 
         return f"PID{{\n{indentation_values}pid: {self.value}\n{indentation_end}}}"
-
-def new_pid(input_value):
-    return PID(input_value)
