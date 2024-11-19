@@ -5,7 +5,7 @@ from connection_interface import ConnectionInterface
 from constants.stream_type import StreamType
 from timeout import Timeout
 from prudp_packet_interface import PRUDPPacketInterface
-from rmc import RMCMessage
+from rmc import RMC
 
 
 class PRUDPPacketInterface:
@@ -87,10 +87,10 @@ class PRUDPPacketInterface:
     def set_payload(self, payload: List[bytearray]) -> None:
         pass
     
-    def rmc_message(self) -> RMCMessage:
+    def rmc_message(self) -> RMC:
         pass
     
-    def set_rmc_message(self, message: RMCMessage) -> None:
+    def set_rmc_message(self, message: RMC) -> None:
         pass
     
     def send_count(self) -> int:

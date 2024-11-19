@@ -25,7 +25,7 @@ class HPPServer:
         self.byte_stream_settings = StreamSettings()
         self.account_details_by_pid = None
         self.account_details_by_username = None
-        self.use_verbose_rmc = False
+        self.use_verbose_rmc = False # Or maybe bool
 
     def register_service_protocol(self, protocol: ServiceProtocol):
         protocol.set_endpoint(self)

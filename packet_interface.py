@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from connection_interface import ConnectionInterface
-from rmc import RMCMessage
+from rmc import RMC
 
 
 class PacketInterface(ABC):
@@ -22,11 +22,11 @@ class PacketInterface(ABC):
         pass
 
     @abstractmethod
-    def rmc_message(self) -> Optional[RMCMessage]:
+    def rmc_message(self) -> Optional[RMC]:
         """Returns the RMCMessage associated with the packet, if any."""
         pass
 
     @abstractmethod
-    def set_rmc_message(self, message: RMCMessage) -> None:
+    def set_rmc_message(self, message: RMC) -> None:
         """Assigns an RMCMessage object to the packet."""
         pass
