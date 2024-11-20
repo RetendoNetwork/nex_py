@@ -2,7 +2,7 @@ from typing import Optional
 
 from hpp_server import HPPServer
 from hpp_client import HPPClient
-from type.pid import PID
+from nex_types.pid import PID
 
 
 class HPPClient:

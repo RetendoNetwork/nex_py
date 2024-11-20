@@ -12,7 +12,7 @@ from streams import StreamSettings
 from service_protocol import ServiceProtocol
 from error import Error
 from packet_interface import PacketInterface
-from type.pid import PID
+from nex_types.pid import PID
 
 
 class HPPServer:

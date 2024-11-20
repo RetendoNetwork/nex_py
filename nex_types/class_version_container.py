@@ -2,6 +2,7 @@ from readable import Readable
 from writable import Writable
 from map import Map
 
+
 class ClassVersionContainer:
     def __init__(self):
         self.structure_version = 0

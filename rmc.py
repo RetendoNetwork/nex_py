@@ -1,7 +1,7 @@
 from streams import StreamIn, StreamOut, StreamSettings
 from library_version import LibraryVersions
 from endpoint_interface import EndpointInterface
-from type.class_version_container import ClassVersionContainer
+from nex_types.class_version_container import ClassVersionContainer
 from result_codes import error_mask
 
 

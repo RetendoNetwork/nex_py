@@ -2,7 +2,7 @@ import socket
 from abc import ABC, abstractmethod
 
 from endpoint_interface import EndpointInterface
-from type.pid import PID
+from nex_types.pid import PID
 
 
 class ConnectionInterface(ABC):

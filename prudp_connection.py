@@ -3,7 +3,7 @@ import time
 import threading
 from collections import defaultdict
 
-from type.pid import PID
+from nex_types.pid import PID
 from mutex_map import MutexMap
 from constants.stream_type import StreamType
 from counter import Counter

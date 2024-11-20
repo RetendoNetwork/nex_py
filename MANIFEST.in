@@ -1,5 +1,0 @@
-include README.md
-recursive-include nex_retendo *.py
-recursive-include nex_retendo/constants *.py
-recursive-include nex_retendo/compression *.py
-recursive-include nex_retendo/type *.py

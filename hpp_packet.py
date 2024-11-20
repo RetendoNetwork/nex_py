@@ -7,7 +7,7 @@ import binascii
 from hpp_client import HPPClient
 from connection_interface import ConnectionInterface
 from rmc import RMC, new_rmc_request
-from type.pid import PID
+from nex_types.pid import PID
 
 
 class HPPPacket:

@@ -5,11 +5,11 @@ import struct
 import io
 from Crypto.Cipher import ARC4
 
-from type.pid import PID
+from nex_types.pid import PID
 from streams import StreamOut, StreamIn
-from type.buffer import Buffer
+from nex_types.buffer import Buffer
 from prudp_server import PRUDPServer
-from type.datetime import DateTime
+from nex_types.datetime import DateTime
 
 
 class KerberosEncryption:

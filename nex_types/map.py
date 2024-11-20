@@ -1,6 +1,7 @@
 from readable import Readable
 from writable import Writable
 
+
 class Map:
     def __init__(self):
         self.map = {}

@@ -1,5 +1,6 @@
 from typing import Optional
-from type.pid import PID
+
+from nex_types.pid import PID
 
 
 class Account:
