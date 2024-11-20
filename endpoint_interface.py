@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from nex.error import Error
+from nex.error import CError
 from nex.packet_interface import PacketInterface
 from nex.library_version import LibraryVersions
 from nex.streams import StreamSettings

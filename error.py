@@ -2,8 +2,8 @@ from nex.result_codes import error_mask, result_code_to_name
 from nex.packet_interface import PacketInterface
 
 
-class Error(Exception):
-    def __init__(self, result_code: int, message: str, packet=PacketInterface):
+class CError(Exception):
+    def __init__(self, result_code: int, message: str, packet: PacketInterface):
         """
         Custom error type representing a NEX error.
         
