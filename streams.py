@@ -1,5 +1,5 @@
 from anynet import streams
-from crunch import Buffer
+from crunch.buffer import Buffer
 
 from nex.library_version import LibraryVersions
 
