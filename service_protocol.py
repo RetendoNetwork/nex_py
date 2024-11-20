@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
-from packet_interface import PacketInterface
-from endpoint_interface import EndpointInterface
+from nex.packet_interface import PacketInterface
+from nex.endpoint_interface import EndpointInterface
 
 
 class ServiceProtocol(ABC):

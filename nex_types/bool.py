@@ -1,5 +1,5 @@
-from readable import Readable
-from writable import Writable
+from nex.nex_types.readable import Readable
+from nex.nex_types.writable import Writable
 
 
 class Bool:

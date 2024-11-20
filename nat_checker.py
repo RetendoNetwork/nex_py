@@ -1,6 +1,6 @@
-
 from anynet import util
 import struct
+
 
 class NATCheckerProtocol:
     PRIMARY_ADDRESS = "nncs1-lp1.n.n.srv.nintendo.net"

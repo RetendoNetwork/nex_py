@@ -1,9 +1,9 @@
 import socket
 import websockets
 
-from prudp_server import PRUDPServer
-from mutex_map import MutexMap
-from prudp_connection import PRUDPConnection
+from nex.prudp_server import PRUDPServer
+from nex.mutex_map import MutexMap
+from nex.prudp_connection import PRUDPConnection
 
 
 class SocketConnection:

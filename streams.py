@@ -1,7 +1,7 @@
 from anynet import streams
 from crunch import Buffer
 
-from library_version import LibraryVersions
+from nex.library_version import LibraryVersions
 
 
 class StreamIn:

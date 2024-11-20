@@ -2,21 +2,17 @@ import time
 from Crypto.Cipher import ARC4
 from typing import Optional, List
 
-from virtual_port import VirtualPort
-from prudp_server import PRUDPServer
-from prudp_connection import PRUDPConnection
-from rmc import RMCMessage
-from timeout import Timeout
-from streams import StreamIn
+from nex.virtual_port import VirtualPort
+from nex.prudp_server import PRUDPServer
+from nex.prudp_connection import PRUDPConnection
+from nex.rmc import RMC
+from nex.timeout import Timeout
+from nex.streams import StreamIn
+from nex.constants.prudp_packet_types import DATA_PACKET
 
-
-# Constants for packet types
-DATA_PACKET = 1  # Example constant, add more as necessary
-
-# Assuming the existence of other required classes like PRUDPServer, PRUDPConnection, VirtualPort, ByteStreamIn, etc.
 
 class PRUDPPacket:
-    def __init__(self, server: PRUDPServer, sender: PRUDPConnection, read_stream: StreamIn, version, source_virtual_port: VirtualPort, destination_virtual_port: VirtualPort, packet_type, flags, session_id, substream_id, signature, sequence_id, connection_signature, fragment_id, payload, message: RMCMessage, send_count, sent_at: time.time, timeout: Timeout):
+    def __init__(self, server: PRUDPServer, sender: PRUDPConnection, read_stream: StreamIn, version, source_virtual_port: VirtualPort, destination_virtual_port: VirtualPort, packet_type, flags, session_id, substream_id, signature, sequence_id, connection_signature, fragment_id, payload, message: RMC, send_count, sent_at: time.time, timeout: Timeout):
         self.server = server
         self.sender = sender
         self.read_stream = read_stream

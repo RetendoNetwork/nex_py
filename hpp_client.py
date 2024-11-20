@@ -1,8 +1,8 @@
 from typing import Optional
 
-from hpp_server import HPPServer
-from hpp_client import HPPClient
-from nex_types.pid import PID
+from nex.hpp_server import HPPServer
+from nex.hpp_client import HPPClient
+from nex.nex_types.pid import PID
 
 
 class HPPClient:

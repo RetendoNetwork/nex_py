@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from writable import Writable
-from readable import Readable
+from nex.nex_types.writable import Writable
+from nex.nex_types.readable import Readable
 
 
 class RVType(ABC):

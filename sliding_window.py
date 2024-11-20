@@ -1,6 +1,7 @@
-from counter import Counter
-from streams import StreamSettings
-from timeout_manager import TimeoutManager
+from nex.counter import Counter
+from nex.streams import StreamSettings
+from nex.timeout_manager import TimeoutManager
+
 
 class SlidingWindow:
     def __init__(self):

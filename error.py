@@ -1,5 +1,5 @@
-from result_codes import error_mask, result_code_to_name
-from packet_interface import PacketInterface
+from nex.result_codes import error_mask, result_code_to_name
+from nex.packet_interface import PacketInterface
 
 
 class Error(Exception):

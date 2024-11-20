@@ -2,15 +2,15 @@ import threading
 from collections import defaultdict
 import time
 
-from constants.prudp_packet_flags import PACKET_FLAG_ACK, PACKET_FLAG_MULTI_ACK
-from counter import Counter
-from streams import StreamSettings
-from prudp_server import PRUDPServer
-from prudp_connection import PRUDPConnection
-from prudp_packet_interface import PRUDPPacketInterface
-from service_protocol import ServiceProtocol
-from account import Account
-from mutex_map import MutexMap
+from nex.constants.prudp_packet_flags import PACKET_FLAG_ACK, PACKET_FLAG_MULTI_ACK
+from nex.counter import Counter
+from nex.streams import StreamSettings
+from nex.prudp_server import PRUDPServer
+from nex.prudp_connection import PRUDPConnection
+from nex.prudp_packet_interface import PRUDPPacketInterface
+from nex.service_protocol import ServiceProtocol
+from nex.account import Account
+from nex.mutex_map import MutexMap
 
 class PRUDPEndPoint:
     def __init__(self, server: PRUDPServer, stream_id, default_stream_settings: StreamSettings):

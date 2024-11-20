@@ -1,6 +1,6 @@
 from counter import Counter
 
-from prudp_packet_interface import PRUDPPacketInterface
+from nex.prudp_packet_interface import PRUDPPacketInterface
 
 
 class PacketDispatchQueue:

@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from connection_interface import ConnectionInterface
-from rmc import RMC
+from nex.connection_interface import ConnectionInterface
+from nex.rmc import RMC
 
 
 class PacketInterface(ABC):

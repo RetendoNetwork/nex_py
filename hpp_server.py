@@ -5,14 +5,14 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import socket
 import json
 
-from hpp_packet import HPPPacket
-from hpp_client import HPPClient
-from library_version import LibraryVersions
-from streams import StreamSettings
-from service_protocol import ServiceProtocol
-from error import Error
-from packet_interface import PacketInterface
-from nex_types.pid import PID
+from nex.hpp_packet import HPPPacket
+from nex.hpp_client import HPPClient
+from nex.library_version import LibraryVersions
+from nex.streams import StreamSettings
+from nex.service_protocol import ServiceProtocol
+from nex.error import Error
+from nex.packet_interface import PacketInterface
+from nex.nex_types.pid import PID
 
 
 class HPPServer:

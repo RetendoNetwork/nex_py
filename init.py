@@ -1,9 +1,9 @@
 from nex_logger import logger
-from result_codes import init_result_codes
-from nex_types import variant
-from nex_types.datetime import DateTime
-from nex_types.bool import Bool
-from nex_types.uint64 import UInt64
+from nex.result_codes import init_result_codes
+from nex.nex_types import variant
+from nex.nex_types.datetime import DateTime
+from nex.nex_types.bool import Bool
+from nex.nex_types.uint64 import UInt64
 
 nexlogger = logger.NewLogger()
 

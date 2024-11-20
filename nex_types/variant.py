@@ -1,9 +1,9 @@
 from typing import Dict, Any
 
-from writable import Writable
-from readable import Readable
-from uint8 import UInt8
-from rv_type import RVType
+from nex.nex_types.writable import Writable
+from nex.nex_types.readable import Readable
+from nex.nex_types.uint8 import UInt8
+from nex.nex_types.rv_type import RVType
 
 
 VariantTypes: Dict[UInt8, RVType] = {}

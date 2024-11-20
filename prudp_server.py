@@ -5,17 +5,17 @@ import random
 import struct
 from abc import ABC, abstractmethod
 
-from library_version import LibraryVersions
-from streams import StreamSettings
-from prudp_v0_settings import PRUDPV0Settings
-from prudp_v1_settings import PRUDPV1Settings
-from prudp_packet_interface import PRUDPPacketInterface
-from mutex_map import MutexMap
-from packet_interface import PacketInterface
-from socket_connection import SocketConnection
-from prudp_endpoint import PRUDPEndPoint
-from constants.prudp_packet_flags import PACKET_FLAG_ACK, PACKET_FLAG_HAS_SIZE, PACKET_FLAG_MULTI_ACK, PACKET_FLAG_NEEDS_ACK, PACKET_FLAG_RELIABLE
-from constants.prudp_packet_types import PING_PACKET, SYN_PACKET, DATA_PACKET, CONNECT_PACKET, DISCONNECT_PACKET
+from nex.library_version import LibraryVersions
+from nex.streams import StreamSettings
+from nex.prudp_v0_settings import PRUDPV0Settings
+from nex.prudp_v1_settings import PRUDPV1Settings
+from nex.prudp_packet_interface import PRUDPPacketInterface
+from nex.mutex_map import MutexMap
+from nex.packet_interface import PacketInterface
+from nex.socket_connection import SocketConnection
+from nex.prudp_endpoint import PRUDPEndPoint
+from nex.constants.prudp_packet_flags import PACKET_FLAG_ACK, PACKET_FLAG_HAS_SIZE, PACKET_FLAG_MULTI_ACK, PACKET_FLAG_NEEDS_ACK, PACKET_FLAG_RELIABLE
+from nex.constants.prudp_packet_types import PING_PACKET, SYN_PACKET, DATA_PACKET, CONNECT_PACKET, DISCONNECT_PACKET
 
 
 class PRUDPServer:

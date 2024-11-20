@@ -4,10 +4,10 @@ import hmac
 import hashlib
 import binascii
 
-from hpp_client import HPPClient
-from connection_interface import ConnectionInterface
-from rmc import RMC, new_rmc_request
-from nex_types.pid import PID
+from nex.hpp_client import HPPClient
+from nex.connection_interface import ConnectionInterface
+from nex.rmc import RMC, new_rmc_request
+from nex.nex_types.pid import PID
 
 
 class HPPPacket:

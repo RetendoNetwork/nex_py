@@ -1,8 +1,8 @@
-from streams import StreamIn, StreamOut, StreamSettings
-from library_version import LibraryVersions
-from endpoint_interface import EndpointInterface
-from nex_types.class_version_container import ClassVersionContainer
-from result_codes import error_mask
+from nex.streams import StreamIn, StreamOut, StreamSettings
+from nex.library_version import LibraryVersions
+from nex.endpoint_interface import EndpointInterface
+from nex.nex_types.class_version_container import ClassVersionContainer
+from nex.result_codes import error_mask
 
 
 class RMC:

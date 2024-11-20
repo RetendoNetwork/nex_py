@@ -1,6 +1,6 @@
 from enum import IntEnum
 
-from constants.stream_type import StreamType
+from nex.constants.stream_type import StreamType
 
 
 class VirtualPort:
