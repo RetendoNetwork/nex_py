@@ -1,4 +1,4 @@
-def impot_module():
+def import_module():
     global error_mask, result_code_to_name, PacketInterface
     from nex.result_codes import error_mask, result_code_to_name
     from nex.packet_interface import PacketInterface
