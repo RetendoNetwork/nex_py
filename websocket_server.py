@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import websockets
 import time
@@ -5,6 +6,7 @@ from typing import List
 
 from nex.prudp_connection import PRUDPConnection
 from nex.prudp_server import PRUDPServer
+
 
 PING_INTERVAL = 5
 PING_WAIT = 10

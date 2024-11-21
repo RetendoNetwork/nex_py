@@ -10,7 +10,7 @@ from nex.hpp_client import HPPClient
 from nex.library_version import LibraryVersions
 from nex.streams import StreamSettings
 from nex.service_protocol import ServiceProtocol
-from nex.error import CError
+from nex.error import Error
 from nex.packet_interface import PacketInterface
 from nex.nex_types.pid import PID
 

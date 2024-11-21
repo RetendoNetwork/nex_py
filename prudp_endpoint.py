@@ -12,6 +12,7 @@ from nex.service_protocol import ServiceProtocol
 from nex.account import Account
 from nex.mutex_map import MutexMap
 
+
 class PRUDPEndPoint:
     def __init__(self, server: PRUDPServer, stream_id, default_stream_settings: StreamSettings):
         self.server = server
@@ -26,8 +27,12 @@ class PRUDPEndPoint:
         self.server_account = Account
         self.account_details_by_pid = None
         self.account_details_by_username = None
-        self.is_secure_endpoint = False # Or maybe bool
-        self.calc_retransmission_timeout_callback = None
+        self.is_secure_endpoint = bool
+        self.calc_retransmission_timeout_callback = CalcRetransmissionTimeoutCallback
+
+        class CalcRetransmissionTimeoutCallback():
+            def __init__(self):
+                pass
 
     def register_service_protocol(self, protocol: ServiceProtocol):
         protocol.set_endpoint(self)

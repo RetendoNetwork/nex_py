@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class Writable(ABC):
     @abstractmethod
-    def string_length_size(self):
+    def string_length_size(self) -> int:
         """
         Returns the size of the length field for String types.
         Only 2 and 4 are valid.
@@ -11,7 +11,7 @@ class Writable(ABC):
         pass
 
     @abstractmethod
-    def pid_size(self):
+    def pid_size(self) -> int:
         """
         Returns the size of the length fields for PID types.
         Only 4 and 8 are valid.
@@ -19,14 +19,14 @@ class Writable(ABC):
         pass
 
     @abstractmethod
-    def use_structure_header(self):
+    def use_structure_header(self) -> bool:
         """
         Returns whether or not Structure types should use a header.
         """
         pass
 
     @abstractmethod
-    def copy_new(self):
+    def copy_new(self) -> 'Writable':
         """
         Returns a new Writable with the same settings, but an empty buffer.
         """
