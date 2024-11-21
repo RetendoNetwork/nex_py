@@ -5,15 +5,17 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import socket
 import json
 
-from nex.hpp_packet import HPPPacket
-from nex.hpp_client import HPPClient
-from nex.library_version import LibraryVersions
-from nex.streams import StreamSettings
-from nex.service_protocol import ServiceProtocol
-from nex.error import Error
-from nex.packet_interface import PacketInterface
-from nex.nex_types.pid import PID
 
+def import_module():
+    global HPPPacket, HPPClient, LibraryVersions, StreamSettings, ServiceProtocol, Error, PacketInterface, PID
+    from nex.hpp_packet import HPPPacket
+    from nex.hpp_client import HPPClient
+    from nex.library_version import LibraryVersions
+    from nex.streams import StreamSettings
+    from nex.service_protocol import ServiceProtocol
+    from nex.error import Error
+    from nex.packet_interface import PacketInterface
+    from nex.nex_types.pid import PID
 
 class HPPServer:
     def __init__(self):
@@ -27,7 +29,7 @@ class HPPServer:
         self.account_details_by_username = None
         self.use_verbose_rmc = False # Or maybe bool
 
-    def register_service_protocol(self, protocol: ServiceProtocol):
+    def register_service_protocol(self, protocol: 'ServiceProtocol'):
         protocol.set_endpoint(self)
         self.on_data(protocol.handle_packet)
 
@@ -118,7 +120,7 @@ class HPPServer:
         print(f"Secure server started on port {port}")
         self.server.serve_forever()
 
-    def send(self, packet: PacketInterface):
+    def send(self, packet: 'PacketInterface'):
         if isinstance(packet, HPPPacket):
             packet.message.is_hpp = True
             packet.payload = packet.message.Bytes()
@@ -133,7 +135,7 @@ class HPPServer:
 
         return HPPRequestHandler
 
-    def get_library_versions(self) -> LibraryVersions:
+    def get_library_versions(self) -> 'LibraryVersions':
         return self.library_versions
 
     def set_access_key(self, access_key) -> str:
@@ -145,7 +147,7 @@ class HPPServer:
     def get_byte_stream_settings(self):
         return self.byte_stream_settings
 
-    def set_byte_stream_settings(self, byte_stream_settings) -> StreamSettings:
+    def set_byte_stream_settings(self, byte_stream_settings) -> 'StreamSettings':
         self.byte_stream_settings = byte_stream_settings
 
     def use_verbose_rmc(self):

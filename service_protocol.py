@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 
-from nex.packet_interface import PacketInterface
-from nex.endpoint_interface import EndpointInterface
 
+def import_module():
+    global PacketInterface, EndpointInterface
+    from nex.packet_interface import PacketInterface
+    from nex.endpoint_interface import EndpointInterface
 
 class ServiceProtocol(ABC):
     """
@@ -10,7 +12,7 @@ class ServiceProtocol(ABC):
     """
 
     @abstractmethod
-    def handle_packet(self, packet: PacketInterface) -> None:
+    def handle_packet(self, packet: 'PacketInterface') -> None:
         """
         Handle the incoming packet.
         
@@ -19,14 +21,14 @@ class ServiceProtocol(ABC):
         pass
 
     @abstractmethod
-    def endpoint(self) -> EndpointInterface:
+    def endpoint(self) -> 'EndpointInterface':
         """
         Returns the endpoint associated with the service.
         """
         pass
 
     @abstractmethod
-    def set_endpoint(self, endpoint: EndpointInterface) -> None:
+    def set_endpoint(self, endpoint: 'EndpointInterface') -> None:
         """
         Set the endpoint for the service.
         

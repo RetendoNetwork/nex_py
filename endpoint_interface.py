@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from nex.error import Error
-from nex.packet_interface import PacketInterface
-from nex.library_version import LibraryVersions
-from nex.streams import StreamSettings
 
+def import_module():
+    global Error, PacketInterface, LibraryVersions, StreamSettings
+    from nex.error import Error
+    from nex.packet_interface import PacketInterface
+    from nex.library_version import LibraryVersions
+    from nex.streams import StreamSettings
 
 class EndpointInterface(ABC):
     @abstractmethod
@@ -19,22 +21,22 @@ class EndpointInterface(ABC):
         pass
 
     @abstractmethod
-    def send(self, packet: PacketInterface):
+    def send(self, packet: 'PacketInterface'):
         """Sends a packet through the endpoint."""
         pass
 
     @abstractmethod
-    def library_versions(self) -> LibraryVersions:
+    def library_versions(self) -> 'LibraryVersions':
         """Returns the library versions of the endpoint."""
         pass
 
     @abstractmethod
-    def byte_stream_settings(self) -> StreamSettings:
+    def byte_stream_settings(self) -> 'StreamSettings':
         """Returns the byte stream settings for the endpoint."""
         pass
 
     @abstractmethod
-    def set_byte_stream_settings(self, settings: StreamSettings):
+    def set_byte_stream_settings(self, settings: 'StreamSettings'):
         """Sets the byte stream settings for the endpoint."""
         pass
 
@@ -49,6 +51,6 @@ class EndpointInterface(ABC):
         pass
 
     @abstractmethod
-    def emit_error(self, err: Error):
+    def emit_error(self, err: 'Error'):
         """Emits an error for the endpoint."""
         pass

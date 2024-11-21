@@ -5,18 +5,20 @@ import random
 import struct
 from abc import ABC, abstractmethod
 
-from nex.library_version import LibraryVersions
-from nex.streams import StreamSettings
-from nex.prudp_v0_settings import PRUDPV0Settings
-from nex.prudp_v1_settings import PRUDPV1Settings
-from nex.prudp_packet_interface import PRUDPPacketInterface
-from nex.mutex_map import MutexMap
-from nex.packet_interface import PacketInterface
-from nex.socket_connection import SocketConnection
-from nex.prudp_endpoint import PRUDPEndPoint
-from nex.constants.prudp_packet_flags import PACKET_FLAG_ACK, PACKET_FLAG_HAS_SIZE, PACKET_FLAG_MULTI_ACK, PACKET_FLAG_NEEDS_ACK, PACKET_FLAG_RELIABLE
-from nex.constants.prudp_packet_types import PING_PACKET, SYN_PACKET, DATA_PACKET, CONNECT_PACKET, DISCONNECT_PACKET
 
+def import_module():
+    global LibraryVersions, StreamSettings, PRUDPV0Settings, PRUDPV1Settings, PRUDPPacketInterface, MutexMap, PacketInterface, SocketConnection, PRUDPEndPoint, PACKET_FLAG_ACK, PACKET_FLAG_MULTI_ACK, PACKET_FLAG_NEEDS_ACK, PACKET_FLAG_NEEDS_ACK, PACKET_FLAG_RELIABLE, PING_PACKET, DATA_PACKET
+    from nex.library_version import LibraryVersions
+    from nex.streams import StreamSettings
+    from nex.prudp_v0_settings import PRUDPV0Settings
+    from nex.prudp_v1_settings import PRUDPV1Settings
+    from nex.prudp_packet_interface import PRUDPPacketInterface
+    from nex.mutex_map import MutexMap
+    from nex.packet_interface import PacketInterface
+    from nex.socket_connection import SocketConnection
+    from nex.prudp_endpoint import PRUDPEndPoint
+    from nex.constants.prudp_packet_flags import PACKET_FLAG_ACK, PACKET_FLAG_MULTI_ACK, PACKET_FLAG_NEEDS_ACK, PACKET_FLAG_RELIABLE
+    from nex.constants.prudp_packet_types import PING_PACKET, DATA_PACKET
 
 class PRUDPServer:
     def __init__(self):
@@ -87,7 +89,7 @@ class PRUDPServer:
         # Implement packet decoding logic here
         return []
 
-    def process_packet(self, packet: PRUDPPacketInterface, address, websocket_connection):
+    def process_packet(self, packet: 'PRUDPPacketInterface', address, websocket_connection):
         stream_id = packet.destination_virtual_port_stream_id()
         if stream_id not in self.endpoints:
             print(f"Client {address} trying to connect to unbound PRUDPEndPoint {stream_id}")
@@ -96,7 +98,7 @@ class PRUDPServer:
         endpoint = self.endpoints[stream_id]
         endpoint.process_packet(packet, address, websocket_connection)
 
-    def send(self, packet: PacketInterface):
+    def send(self, packet: 'PacketInterface'):
         if isinstance(packet, PRUDPPacketInterface):
             data = packet.payload()
             fragments = len(data) // self.fragment_size
@@ -117,7 +119,7 @@ class PRUDPServer:
                 if i < fragments:
                     time.sleep(0.016)
 
-    def send_packet(self, packet: PRUDPPacketInterface):
+    def send_packet(self, packet: 'PRUDPPacketInterface'):
         packet_copy = packet.copy()
         connection = packet_copy.sender()
 
@@ -162,7 +164,7 @@ class PRUDPServer:
 
         self.send_raw(packet_copy.sender().socket, packet_copy.bytes())
 
-    def send_raw(self, socket_connection: SocketConnection, data):
+    def send_raw(self, socket_connection: 'SocketConnection', data):
         if isinstance(socket_connection.address, tuple):
             self.udp_socket.sendto(data, socket_connection.address)
         else:

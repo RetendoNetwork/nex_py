@@ -1,18 +1,19 @@
 import time
 from Crypto.Cipher import ARC4
-from typing import Optional, List
 
-from nex.virtual_port import VirtualPort
-from nex.prudp_server import PRUDPServer
-from nex.prudp_connection import PRUDPConnection
-from nex.rmc import RMC
-from nex.timeout import Timeout
-from nex.streams import StreamIn
-from nex.constants.prudp_packet_types import DATA_PACKET
 
+def import_module():
+    global VirtualPort, PRUDPServer, PRUDPConnection, RMC, Timeout, StreamIn, DATA_PACKET
+    from nex.virtual_port import VirtualPort
+    from nex.prudp_server import PRUDPServer
+    from nex.prudp_connection import PRUDPConnection
+    from nex.rmc import RMC
+    from nex.timeout import Timeout
+    from nex.streams import StreamIn
+    from nex.constants.prudp_packet_types import DATA_PACKET
 
 class PRUDPPacket:
-    def __init__(self, server: PRUDPServer, sender: PRUDPConnection, read_stream: StreamIn, version, source_virtual_port: VirtualPort, destination_virtual_port: VirtualPort, packet_type, flags, session_id, substream_id, signature, sequence_id, connection_signature, fragment_id, payload, message: RMC, send_count, sent_at: time.time, timeout: Timeout):
+    def __init__(self, server: 'PRUDPServer', sender: 'PRUDPConnection', read_stream: 'StreamIn', version, source_virtual_port: 'VirtualPort', destination_virtual_port: 'VirtualPort', packet_type, flags, session_id, substream_id, signature, sequence_id, connection_signature, fragment_id, payload, message: 'RMC', send_count, sent_at: time.time, timeout: 'Timeout'):
         self.server = server
         self.sender = sender
         self.read_stream = read_stream

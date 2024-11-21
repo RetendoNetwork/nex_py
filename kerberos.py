@@ -5,12 +5,14 @@ import struct
 import io
 from Crypto.Cipher import ARC4
 
-from nex.nex_types.pid import PID
-from nex.streams import StreamOut, StreamIn
-from nex.nex_types.buffer import Buffer
-from nex.prudp_server import PRUDPServer
-from nex.nex_types.datetime import DateTime
 
+def import_module():
+    global PID, StreamIn, StreamOut, Buffer, PRUDPServer, DateTime
+    from nex.nex_types.pid import PID
+    from nex.streams import StreamOut, StreamIn
+    from nex.nex_types.buffer import Buffer
+    from nex.prudp_server import PRUDPServer
+    from nex.nex_types.datetime import DateTime
 
 class KerberosEncryption:
     def __init__(self, key):
@@ -45,7 +47,7 @@ class KerberosTicket:
         self.target_pid = PID
         self.internal_data = Buffer
 
-    def encrypt(self, key, stream: StreamOut):
+    def encrypt(self, key, stream: 'StreamOut'):
         encryption = KerberosEncryption(key)
         stream.write(self.session_key)
         self.target_pid.write_to(stream)
@@ -56,13 +58,13 @@ def new_kerberos_ticket():
     return KerberosTicket()
 
 class KerberosTicketInternalData:
-    def __init__(self, server: PRUDPServer):
+    def __init__(self, server: 'PRUDPServer'):
         self.server = server
         self.issued = DateTime
         self.source_pid = PID
         self.session_key = None
 
-    def encrypt(self, key, stream: StreamOut):
+    def encrypt(self, key, stream: 'StreamOut'):
         self.issued.write_to(stream)
         self.source_pid.write_to(stream)
         stream.write(self.session_key)
@@ -78,7 +80,7 @@ class KerberosTicketInternalData:
         encryption = KerberosEncryption(key)
         return encryption.encrypt(data)
 
-    def decrypt(self, stream: StreamIn, key):
+    def decrypt(self, stream: 'StreamIn', key):
         if self.server.kerberos_ticket_version == 1:
             ticket_key = stream.read(16)
             data = stream.read()

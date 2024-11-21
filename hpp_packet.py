@@ -4,14 +4,16 @@ import hmac
 import hashlib
 import binascii
 
-from nex.hpp_client import HPPClient
-from nex.connection_interface import ConnectionInterface
-from nex.rmc import RMC, new_rmc_request
-from nex.nex_types.pid import PID
 
+def import_module():
+    global HPPClient, ConnectionInterface, RMC, new_rmc_request, PID
+    from nex.hpp_client import HPPClient
+    from nex.connection_interface import ConnectionInterface
+    from nex.rmc import RMC, new_rmc_request
+    from nex.nex_types.pid import PID
 
 class HPPPacket:
-    def __init__(self, sender: HPPClient, payload: Optional[bytes] = None):
+    def __init__(self, sender: 'HPPClient', payload: Optional[bytes] = None):
         self.sender = sender
         self.access_key_signature = b""
         self.password_signature = b""
@@ -26,7 +28,7 @@ class HPPPacket:
                 raise Exception(f"Failed to decode HPP request: {err}")
             self.set_rmc_message(rmc_message)
 
-    def sender(self) -> ConnectionInterface:
+    def sender(self) -> 'ConnectionInterface':
         return self.sender
 
     def payload(self) -> bytes:
@@ -98,12 +100,12 @@ class HPPPacket:
         mac = hmac.new(key, buffer, hashlib.md5)
         return mac.digest()
 
-    def rmc_message(self) -> Optional[RMC]:
+    def rmc_message(self) -> Optional['RMC']:
         return self.message
 
-    def set_rmc_message(self, message: RMC) -> None:
+    def set_rmc_message(self, message: 'RMC'):
         self.message = message
 
-    def derive_kerberos_key(self, pid: PID, password: bytes) -> bytes:
+    def derive_kerberos_key(self, pid: 'PID', password: bytes) -> bytes:
         # Placeholder for the actual implementation of key derivation logic
         return password  # You can replace this with the actual key derivation logic

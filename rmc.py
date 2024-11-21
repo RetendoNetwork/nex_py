@@ -1,23 +1,25 @@
-from nex.streams import StreamIn, StreamOut, StreamSettings
-from nex.library_version import LibraryVersions
-from nex.endpoint_interface import EndpointInterface
-from nex.nex_types.class_version_container import ClassVersionContainer
-from nex.result_codes import error_mask
-
+def import_module():
+    global StreamOut, StreamIn, StreamSettings, LibraryVersions, EndpointInterface, ClassVersionContainer, String, error_mask
+    from nex.streams import StreamIn, StreamOut, StreamSettings
+    from nex.library_version import LibraryVersions
+    from nex.endpoint_interface import EndpointInterface
+    from nex.nex_types.class_version_container import ClassVersionContainer
+    from nex.nex_types.string import String
+    from nex.result_codes import error_mask
 
 class RMC:
-    def __init__(self, endpoint: EndpointInterface):
+    def __init__(self, endpoint: 'EndpointInterface'):
         self.endpoint = endpoint
         self.is_request = bool
         self.is_success = bool
         self.is_hpp = bool
         self.protocol_id = 0
-        self.protocol_name = ""
+        self.protocol_name = String
         self.call_id = 0
         self.method_id = 0
-        self.method_name = ""
+        self.method_name = String
         self.error_code = 0
-        self.version_container = None
+        self.version_container = ClassVersionContainer
         self.parameters = None
 
     def copy(self):

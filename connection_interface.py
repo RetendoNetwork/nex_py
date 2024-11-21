@@ -1,13 +1,15 @@
 import socket
 from abc import ABC, abstractmethod
 
-from nex.endpoint_interface import EndpointInterface
-from nex.nex_types.pid import PID
 
+def import_module():
+    global EndpointInterface, PID
+    from nex.endpoint_interface import EndpointInterface
+    from nex.nex_types.pid import PID
 
 class ConnectionInterface(ABC):
     @abstractmethod
-    def endpoint(self) -> EndpointInterface:
+    def endpoint(self) -> 'EndpointInterface':
         """Returns the endpoint associated with the connection."""
         pass
 
@@ -17,11 +19,11 @@ class ConnectionInterface(ABC):
         pass
 
     @abstractmethod
-    def pid(self) -> PID:
+    def pid(self) -> 'PID':
         """Returns the PID of the connection."""
         pass
 
     @abstractmethod
-    def set_pid(self, pid: PID):
+    def set_pid(self, pid: 'PID'):
         """Sets the PID for the connection."""
         pass

@@ -1,15 +1,17 @@
 import time
 from typing import List, Optional
 
-from nex.connection_interface import ConnectionInterface
-from nex.constants.stream_type import StreamType
-from nex.timeout import Timeout
-from nex.prudp_packet_interface import PRUDPPacketInterface
-from nex.rmc import RMC
 
+def import_module():
+    global ConnectionInterface, StreamType, Timeout, PRUDPPacketInterface, RMC
+    from nex.connection_interface import ConnectionInterface
+    from nex.constants.stream_type import StreamType
+    from nex.timeout import Timeout
+    from nex.prudp_packet_interface import PRUDPPacketInterface
+    from nex.rmc import RMC
 
 class PRUDPPacketInterface:
-    def copy(self) -> PRUDPPacketInterface:
+    def copy(self) -> 'PRUDPPacketInterface':
         pass
     
     def version(self) -> int:
@@ -18,10 +20,10 @@ class PRUDPPacketInterface:
     def bytes(self) -> List[bytearray]:
         pass
     
-    def set_sender(self, sender: ConnectionInterface) -> None:
+    def set_sender(self, sender: 'ConnectionInterface'):
         pass
     
-    def sender(self) -> ConnectionInterface:
+    def sender(self) -> 'ConnectionInterface':
         pass
     
     def flags(self) -> int:
@@ -30,34 +32,34 @@ class PRUDPPacketInterface:
     def has_flag(self, flag: int) -> bool:
         pass
     
-    def add_flag(self, flag: int) -> None:
+    def add_flag(self, flag: int):
         pass
     
-    def set_type(self, packet_type: int) -> None:
+    def set_type(self, packet_type: int):
         pass
     
     def packet_type(self) -> int:
         pass
     
-    def set_source_virtual_port_stream_type(self, stream_type: StreamType) -> None:
+    def set_source_virtual_port_stream_type(self, stream_type: 'StreamType'):
         pass
     
-    def source_virtual_port_stream_type(self) -> StreamType:
+    def source_virtual_port_stream_type(self) -> 'StreamType':
         pass
     
-    def set_source_virtual_port_stream_id(self, port: int) -> None:
+    def set_source_virtual_port_stream_id(self, port: int):
         pass
     
     def source_virtual_port_stream_id(self) -> int:
         pass
     
-    def set_destination_virtual_port_stream_type(self, stream_type: StreamType) -> None:
+    def set_destination_virtual_port_stream_type(self, stream_type: 'StreamType'):
         pass
     
-    def destination_virtual_port_stream_type(self) -> StreamType:
+    def destination_virtual_port_stream_type(self) -> 'StreamType':
         pass
     
-    def set_destination_virtual_port_stream_id(self, port: int) -> None:
+    def set_destination_virtual_port_stream_id(self, port: int):
         pass
     
     def destination_virtual_port_stream_id(self) -> int:
@@ -66,55 +68,55 @@ class PRUDPPacketInterface:
     def session_id(self) -> int:
         pass
     
-    def set_session_id(self, session_id: int) -> None:
+    def set_session_id(self, session_id: int):
         pass
     
     def substream_id(self) -> int:
         pass
     
-    def set_substream_id(self, substream_id: int) -> None:
+    def set_substream_id(self, substream_id: int):
         pass
     
     def sequence_id(self) -> int:
         pass
     
-    def set_sequence_id(self, sequence_id: int) -> None:
+    def set_sequence_id(self, sequence_id: int):
         pass
     
     def payload(self) -> List[bytearray]:
         pass
     
-    def set_payload(self, payload: List[bytearray]) -> None:
+    def set_payload(self, payload: List[bytearray]):
         pass
     
-    def rmc_message(self) -> RMC:
+    def rmc_message(self) -> 'RMC':
         pass
     
-    def set_rmc_message(self, message: RMC) -> None:
+    def set_rmc_message(self, message: 'RMC'):
         pass
     
     def send_count(self) -> int:
         pass
     
-    def increment_send_count(self) -> None:
+    def increment_send_count(self):
         pass
     
     def sent_at(self) -> time.time:
         pass
     
-    def set_sent_at(self, time: time.time) -> None:
+    def set_sent_at(self, time: time.time):
         pass
     
-    def get_timeout(self) -> Optional[Timeout]:
+    def get_timeout(self) -> Optional['Timeout']:
         pass
     
-    def set_timeout(self, timeout: Timeout) -> None:
+    def set_timeout(self, timeout: 'Timeout'):
         pass
     
     def decode(self) -> Optional[Exception]:
         pass
     
-    def set_signature(self, signature: List[bytearray]) -> None:
+    def set_signature(self, signature: List[bytearray]):
         pass
     
     def calculate_connection_signature(self, addr: 'net.addr') -> List[bytearray]:

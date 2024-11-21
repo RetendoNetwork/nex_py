@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from nex.connection_interface import ConnectionInterface
-from nex.rmc import RMC
 
+def import_module():
+    global ConnectionInterface, RMC
+    from nex.connection_interface import ConnectionInterface
+    from nex.rmc import RMC
 
 class PacketInterface(ABC):
     @abstractmethod

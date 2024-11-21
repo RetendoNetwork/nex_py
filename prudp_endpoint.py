@@ -2,19 +2,21 @@ import threading
 from collections import defaultdict
 import time
 
-from nex.constants.prudp_packet_flags import PACKET_FLAG_ACK, PACKET_FLAG_MULTI_ACK
-from nex.counter import Counter
-from nex.streams import StreamSettings
-from nex.prudp_server import PRUDPServer
-from nex.prudp_connection import PRUDPConnection
-from nex.prudp_packet_interface import PRUDPPacketInterface
-from nex.service_protocol import ServiceProtocol
-from nex.account import Account
-from nex.mutex_map import MutexMap
 
+def import_module():
+    global PACKET_FLAG_ACK, PACKET_FLAG_MULTI_ACK, Counter, StreamSettings, PRUDPServer, PRUDPConnection, PRUDPPacketInterface, ServiceProtocol, Account, MutexMap
+    from nex.constants.prudp_packet_flags import PACKET_FLAG_ACK, PACKET_FLAG_MULTI_ACK
+    from nex.counter import Counter
+    from nex.streams import StreamSettings
+    from nex.prudp_server import PRUDPServer
+    from nex.prudp_connection import PRUDPConnection
+    from nex.prudp_packet_interface import PRUDPPacketInterface
+    from nex.service_protocol import ServiceProtocol
+    from nex.account import Account
+    from nex.mutex_map import MutexMap
 
 class PRUDPEndPoint:
-    def __init__(self, server: PRUDPServer, stream_id, default_stream_settings: StreamSettings):
+    def __init__(self, server: 'PRUDPServer', stream_id, default_stream_settings: 'StreamSettings'):
         self.server = server
         self.stream_id = stream_id
         self.default_stream_settings = default_stream_settings
@@ -34,7 +36,7 @@ class PRUDPEndPoint:
             def __init__(self):
                 pass
 
-    def register_service_protocol(self, protocol: ServiceProtocol):
+    def register_service_protocol(self, protocol: 'ServiceProtocol'):
         protocol.set_endpoint(self)
         self.on_data(protocol.handle_packet)
 
@@ -56,11 +58,11 @@ class PRUDPEndPoint:
     def on(self, name: str, handler):
         self.packet_event_handlers[name].append(handler)
 
-    def emit(self, name: str, packet: PRUDPPacketInterface):
+    def emit(self, name: str, packet: 'PRUDPPacketInterface'):
         for handler in self.packet_event_handlers[name]:
             handler(packet)
 
-    def emit_connection_ended(self, connection: PRUDPConnection):
+    def emit_connection_ended(self, connection: 'PRUDPConnection'):
         for handler in self.connection_ended_event_handlers:
             handler(connection)
 
@@ -73,7 +75,7 @@ class PRUDPEndPoint:
         for key in keys_to_delete:
             del self.connections[key]
 
-    def process_packet(self, packet: PRUDPPacketInterface, socket):
+    def process_packet(self, packet: 'PRUDPPacketInterface', socket):
         stream_type = packet.source_virtual_port_stream_type()
         stream_id = packet.source_virtual_port_stream_id()
         discriminator = f"{socket.address}-{stream_type}-{stream_id}"

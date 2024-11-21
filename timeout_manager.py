@@ -1,12 +1,14 @@
 import time
 import threading
 
-from nex.mutex_map import MutexMap
-from nex.streams import StreamSettings
-from nex.timeout import Timeout
-from nex.prudp_packet import PRUDPPacket
-from nex.prudp_packet_interface import PRUDPPacketInterface
 
+def import_module():
+    global MutexMap, StreamSettings, Timeout, PRUDPPacket, PRUDPPacketInterface
+    from nex.mutex_map import MutexMap
+    from nex.streams import StreamSettings
+    from nex.timeout import Timeout
+    from nex.prudp_packet import PRUDPPacket
+    from nex.prudp_packet_interface import PRUDPPacketInterface
 
 class TimeoutManager:
     def __init__(self):
@@ -14,7 +16,7 @@ class TimeoutManager:
         self.packets = MutexMap()
         self.stream_settings = StreamSettings()
 
-    def schedule_packet_timeout(self, packet: PRUDPPacketInterface):
+    def schedule_packet_timeout(self, packet: 'PRUDPPacketInterface'):
         # Simulate the PRUDP endpoint and compute the RTO (Retransmission Timeout)
         rto = packet.sender.endpoint.compute_retransmit_timeout(packet)
         timeout = Timeout()
@@ -28,12 +30,12 @@ class TimeoutManager:
     def acknowledge_packet(self, sequence_id):
         self.packets.run_and_delete(sequence_id, self.handle_acknowledgement)
 
-    def handle_acknowledgement(self, sequence_id, packet: PRUDPPacketInterface):
+    def handle_acknowledgement(self, sequence_id, packet: 'PRUDPPacketInterface'):
         if packet.send_count() >= self.stream_settings.rtt_retransmit:
             rtt_m = time.time() - packet.sent_at
             packet.sender.connection.rtt.adjust(rtt_m)
 
-    def start(self, packet: PRUDPPacketInterface):
+    def start(self, packet: 'PRUDPPacketInterface'):
         if packet.get_timeout()._ctx.is_alive():
             packet.get_timeout()._ctx.cancel()
 

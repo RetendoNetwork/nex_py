@@ -1,7 +1,9 @@
 from counter import Counter
 
-from nex.prudp_packet_interface import PRUDPPacketInterface
 
+def import_module():
+    global PRUDPPacketInterface
+    from nex.prudp_packet_interface import PRUDPPacketInterface
 
 class PacketDispatchQueue:
     def __init__(self):
@@ -9,7 +11,7 @@ class PacketDispatchQueue:
         self.queue = {}  # A dictionary to hold packets by sequence ID
         self.next_expected_sequence_id = Counter(2)  # Start at 2, as per the comment in the original Go code
 
-    def queue(self, packet: PRUDPPacketInterface):
+    def queue(self, packet: 'PRUDPPacketInterface'):
         """Adds a packet to the queue"""
         self.queue[packet.sequence_id()] = packet
 
@@ -20,7 +22,7 @@ class PacketDispatchQueue:
             return packet, True
         return None, False
 
-    def dispatched(self, packet: PRUDPPacketInterface):
+    def dispatched(self, packet: 'PRUDPPacketInterface'):
         """Removes a packet from the queue after dispatch"""
         self.next_expected_sequence_id.next()
         del self.queue[packet.sequence_id()]

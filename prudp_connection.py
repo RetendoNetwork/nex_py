@@ -3,15 +3,17 @@ import time
 import threading
 from collections import defaultdict
 
-from nex.nex_types.pid import PID
-from nex.mutex_map import MutexMap
-from nex.constants.stream_type import StreamType
-from nex.counter import Counter
-from nex.rtt import RTT
-from nex.streams import StreamSettings
-from nex.sliding_window import SlidingWindow
-from nex.packet_dispatch_queue import PacketDispatchQueue
 
+def import_module():
+    global PID, MutexMap, StreamType, Counter, RTT, StreamSettings, SlidingWindow, PacketDispatchQueue
+    from nex.nex_types.pid import PID
+    from nex.mutex_map import MutexMap
+    from nex.constants.stream_type import StreamType
+    from nex.counter import Counter
+    from nex.rtt import RTT
+    from nex.streams import StreamSettings
+    from nex.sliding_window import SlidingWindow
+    from nex.packet_dispatch_queue import PacketDispatchQueue
 
 class PRUDPConnection:
     def __init__(self, socket):
