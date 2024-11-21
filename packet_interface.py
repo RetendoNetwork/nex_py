@@ -9,7 +9,7 @@ def import_module():
 
 class PacketInterface(ABC):
     @abstractmethod
-    def sender(self) -> ConnectionInterface:
+    def sender(self) -> 'ConnectionInterface':
         """Returns the object representing the sender of the packet."""
         pass
 
@@ -24,11 +24,11 @@ class PacketInterface(ABC):
         pass
 
     @abstractmethod
-    def rmc_message(self) -> Optional[RMC]:
+    def rmc_message(self) -> Optional['RMC']:
         """Returns the RMCMessage associated with the packet, if any."""
         pass
 
     @abstractmethod
-    def set_rmc_message(self, message: RMC) -> None:
+    def set_rmc_message(self, message: 'RMC') -> None:
         """Assigns an RMCMessage object to the packet."""
         pass
