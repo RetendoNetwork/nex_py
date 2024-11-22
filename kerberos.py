@@ -1,18 +1,14 @@
 import hmac
 import hashlib
 import os
-import struct
 import io
 from Crypto.Cipher import ARC4
 
+from nex_types.datetime import DateTime
+from nex_types.pid import PID
+from streams import StreamIn, StreamOut
+from prudp import PRUDPServer
 
-def import_module():
-    global PID, StreamIn, StreamOut, Buffer, PRUDPServer, DateTime
-    from nex.nex_types.pid import PID
-    from nex.streams import StreamOut, StreamIn
-    from nex.nex_types.buffer import Buffer
-    from nex.prudp_server import PRUDPServer
-    from nex.nex_types.datetime import DateTime
 
 class KerberosEncryption:
     def __init__(self, key):
@@ -38,33 +34,27 @@ class KerberosEncryption:
         mac = hmac.new(self.key, encrypted, hashlib.md5)
         return encrypted + mac.digest()
 
-def new_kerberos_encryption(key):
-    return KerberosEncryption(key)
-
 class KerberosTicket:
     def __init__(self):
         self.session_key = None
         self.target_pid = PID
-        self.internal_data = Buffer
+        self.internal_data = b""
 
-    def encrypt(self, key, stream: 'StreamOut'):
+    def encrypt(self, key, stream: StreamOut):
         encryption = KerberosEncryption(key)
         stream.write(self.session_key)
         self.target_pid.write_to(stream)
         self.internal_data.write_to(stream)
         return encryption.encrypt(stream)
 
-def new_kerberos_ticket():
-    return KerberosTicket()
-
 class KerberosTicketInternalData:
-    def __init__(self, server: 'PRUDPServer'):
+    def __init__(self, server: PRUDPServer):
         self.server = server
         self.issued = DateTime
         self.source_pid = PID
         self.session_key = None
 
-    def encrypt(self, key, stream: 'StreamOut'):
+    def encrypt(self, key, stream: StreamOut):
         self.issued.write_to(stream)
         self.source_pid.write_to(stream)
         stream.write(self.session_key)
@@ -80,7 +70,7 @@ class KerberosTicketInternalData:
         encryption = KerberosEncryption(key)
         return encryption.encrypt(data)
 
-    def decrypt(self, stream: 'StreamIn', key):
+    def decrypt(self, stream: StreamIn, key):
         if self.server.kerberos_ticket_version == 1:
             ticket_key = stream.read(16)
             data = stream.read()
@@ -94,9 +84,6 @@ class KerberosTicketInternalData:
         self.issued = DateTime(stream)
         self.source_pid = PID(stream)
         self.session_key = stream.read(self.server.session_key_length)
-
-def new_kerberos_ticket_internal_data(server):
-    return KerberosTicketInternalData(server)
 
 def derive_kerberos_key(pid, password):
     iteration_count = 65000 + pid % 1024

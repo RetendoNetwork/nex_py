@@ -33,14 +33,10 @@
 
 # Example for use NEX
 ```py
-# Need to import the NEX functions like this because our lib use import_module function for don't have an error called 'Import Circular'.
-def import_module():
-  global PID, Account, PacketInterface, PRUDPSerer, PRUDPEndPoint
-  from nex.type.pid import PID
-  from nex.account import Account
-  import nex.rmc_message
-  from nex.packet_interface import PacketInterface
-  from nex.prudp_server import PRUDPServer, PRUDPEndPoint
+from nex.nex_types.pid import PID
+from nex.account import Account
+from nex.rmc import RMC
+from nex.prudp import PacketInterface, PRUDPPacketInterface, PRUDPServer, PRUDPEndPoint
 
 def main():
     # Initialize PRUDP server and endpoint

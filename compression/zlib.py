@@ -1,44 +1,15 @@
-import zlib
-
-
-class Zlib:
-    def compress(self, payload: bytes) -> bytes:
-        """
-        Compresses the payload using zlib and returns the compressed data
-        with the compression ratio as the first byte.
-        """
-        compressed = zlib.compress(payload)
-
-        compression_ratio = len(payload) // len(compressed) + 1
-
-        # Adding the compression ratio as the first byte
-        result = bytes([compression_ratio]) + compressed
-
-        return result
-
-    def decompress(self, payload: bytes) -> bytes:
-        """
-        Decompresses the payload using zlib, checking the compression ratio.
-        """
-        compression_ratio = payload[0]
-        compressed = payload[1:]
-
-        if compression_ratio == 0:
-            # Compression ratio of 0 means no compression
-            return compressed
-
-        decompressed = zlib.decompress(compressed)
-
-        # Check if the decompression ratio is correct
-        ratio_check = len(decompressed) // len(compressed) + 1
-
-        if ratio_check != compression_ratio:
-            raise ValueError(f"Failed to decompress payload. Got bad ratio. Expected {compression_ratio}, got {ratio_check}")
-
+class zlib:
+    def compress(self, data):
+        compressed = zlib.compress(data)
+        ratio = int(len(data) / len(compressed) + 1)
+        return bytes([ratio]) + compressed
+		
+    def decompress(self, data):
+        if data[0] == 0:
+          return data[1:]
+		
+        decompressed = zlib.decompress(data[1:])
+        ratio = int(len(decompressed) / (len(data) - 1) + 1)
+        if ratio != data[0]:
+            raise ValueError("Unexpected compression ratio (expected %i, got %i)" %ratio, data[0])
         return decompressed
-
-    def copy(self):
-        """
-        Returns a new instance of the Zlib compression algorithm.
-        """
-        return Zlib()
