@@ -3,122 +3,52 @@ from abc import ABC, abstractmethod
 
 class Writable(ABC):
     @abstractmethod
-    def string_length_size(self) -> int:
-        """
-        Returns the size of the length field for String types.
-        Only 2 and 4 are valid.
-        """
-        pass
+    def string_length_size(self) -> int: pass
 
     @abstractmethod
-    def pid_size(self) -> int:
-        """
-        Returns the size of the length fields for PID types.
-        Only 4 and 8 are valid.
-        """
-        pass
+    def pid_size(self) -> int: pass
 
     @abstractmethod
-    def use_structure_header(self) -> bool:
-        """
-        Returns whether or not Structure types should use a header.
-        """
-        pass
+    def use_structure_header(self) -> bool: pass
 
     @abstractmethod
-    def copy_new(self) -> 'Writable':
-        """
-        Returns a new Writable with the same settings, but an empty buffer.
-        """
-        pass
+    def copy_new(self) -> 'Writable': pass
 
     @abstractmethod
-    def write(self, data):
-        """
-        Writes the provided data to the buffer.
-        """
-        pass
+    def write(self, data): pass
 
     @abstractmethod
-    def write_uint8(self, value):
-        """
-        Writes a primitive Python uint8.
-        """
-        pass
+    def write_uint8(self, value): pass
 
     @abstractmethod
-    def write_uint16_le(self, value):
-        """
-        Writes a primitive Python uint16.
-        """
-        pass
+    def write_uint16_le(self, value): pass
 
     @abstractmethod
-    def write_uint32_le(self, value):
-        """
-        Writes a primitive Python uint32.
-        """
-        pass
+    def write_uint32_le(self, value): pass
 
     @abstractmethod
-    def write_uint64_le(self, value):
-        """
-        Writes a primitive Python uint64.
-        """
-        pass
+    def write_uint64_le(self, value): pass
 
     @abstractmethod
-    def write_int8(self, value):
-        """
-        Writes a primitive Python int8.
-        """
-        pass
+    def write_int8(self, value): pass
 
     @abstractmethod
-    def write_int16_le(self, value):
-        """
-        Writes a primitive Python int16.
-        """
-        pass
+    def write_int16_le(self, value): pass
 
     @abstractmethod
-    def write_int32_le(self, value):
-        """
-        Writes a primitive Python int32.
-        """
-        pass
+    def write_int32_le(self, value): pass
 
     @abstractmethod
-    def write_int64_le(self, value):
-        """
-        Writes a primitive Python int64.
-        """
-        pass
+    def write_int64_le(self, value): pass
 
     @abstractmethod
-    def write_float32_le(self, value):
-        """
-        Writes a primitive Python float32.
-        """
-        pass
+    def write_float32_le(self, value): pass
 
     @abstractmethod
-    def write_float64_le(self, value):
-        """
-        Writes a primitive Python float64.
-        """
-        pass
+    def write_float64_le(self, value): pass
 
     @abstractmethod
-    def write_bool(self, value):
-        """
-        Writes a primitive Python bool.
-        """
-        pass
+    def write_bool(self, value: bool): pass
 
     @abstractmethod
-    def bytes(self):
-        """
-        Returns the data written to the buffer.
-        """
-        pass
+    def bytes(self): pass
