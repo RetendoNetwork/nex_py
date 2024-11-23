@@ -1,10 +1,11 @@
 # NEX
 - NEX/PRUDP Server Library for Nintendo Wii U, 3DS and Switch Consoles written in Python.
 
-# Overview
+## Overview
 - NEX is a server library used by games on the Wii U, 3DS and Switch which allow you to play online multiplayer.
+- Nintendo doesn't create the NEX Server from scratch, They are based on a library called `Quazal Rendez Vous`, Nintendo has modified this library so that it works with games for Nintendo Wii U, 3DS and Switch consoles.
 
-# Installation
+## Installation
 > [!WARNING]
 > NOTE: We have not put this lib directly with pip yet.
 - Install [Python](https://www.python.org/downloads/) and [Git](https://git-scm.com/downloads/).
@@ -15,5 +16,5 @@
 > [!IMPORTANT]  
 > If it's doesn't work to import NEX Library, try to run on the cmd `pip show nex` or restart your code editor.
 
-# License
+## License
 - This project is licensed under the GNU Affero General Public License version 3
