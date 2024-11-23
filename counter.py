@@ -1,6 +1,5 @@
 from typing import TypeVar, Union
 
-
 T = TypeVar('T', bound=Union[int, float, complex])
 
 class Counter:
@@ -10,7 +9,3 @@ class Counter:
     def next(self) -> T:
         self.value += 1
         return self.value
-
-    @staticmethod
-    def new_counter(start: T) -> 'Counter'[T]:
-        return Counter(start)
