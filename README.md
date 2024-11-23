@@ -21,7 +21,7 @@
 - And on the cmd, run `cd nex` and run `pip install .`
 - And now you have Retendo Network NEX Library on Python.
 > [!IMPORTANT]  
-> If it's doesn't work to import NEX Library, try to run on the cmd `pip show nex` or restart your code editor.
+> If it's doesn't work to import NEX, try to run on the cmd `pip show nex` or restart your code editor.
 
 ## License
 - This project is licensed under the GNU Affero General Public License version 3
