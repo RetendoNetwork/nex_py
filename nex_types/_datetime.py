@@ -1,8 +1,8 @@
 import struct
 from datetime import datetime
 
-from .writable import Writable
-from .readable import Readable
+from writable import Writable
+from readable import Readable
 
 
 class DateTime:

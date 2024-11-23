@@ -1,5 +1,5 @@
-from .readable import Readable
-from .writable import Writable
+from readable import Readable
+from writable import Writable
 
 
 class PID:
