@@ -9,7 +9,7 @@ from nex_types.pid import PID
 from byte_stream_in import ByteStreamIn
 from byte_stream_out import ByteStreamOut
 from nex_types.buffer import Buffer
-from nex_types.datetime import DateTime
+from nex_types._datetime import DateTime
 
 
 class KerberosEncryption:

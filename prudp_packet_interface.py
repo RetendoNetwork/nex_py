@@ -1,14 +1,15 @@
 import time
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
+# Delete the circular import error
+if TYPE_CHECKING:
+    from prudp_packet_interface import PRUDPPacketInterface
+    
+from connection_interface import ConnectionInterface
+from constants.stream_type import StreamType
+from timeout import Timeout
+from rmc import RMC
 
-def import_module():
-    global ConnectionInterface, StreamType, Timeout, PRUDPPacketInterface, RMC
-    from nex.connection_interface import ConnectionInterface
-    from nex.constants.stream_type import StreamType
-    from nex.timeout import Timeout
-    from nex.prudp_packet_interface import PRUDPPacketInterface
-    from nex.rmc import RMC
 
 class PRUDPPacketInterface:
     def copy(self) -> 'PRUDPPacketInterface': pass

@@ -2,6 +2,7 @@ from counter import Counter
 
 from prudp_packet_interface import PRUDPPacketInterface
 
+
 class PacketDispatchQueue:
     def __init__(self):
         self.queue = {}

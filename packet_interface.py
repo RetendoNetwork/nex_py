@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+# Delete the circular import error
 if TYPE_CHECKING:
     from rmc import RMC
     from connection_interface import ConnectionInterface
