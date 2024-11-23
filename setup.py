@@ -9,7 +9,7 @@ setup(
         'grpcio-tools',
     ],
     author="Retendo Contributors",
-    description="NEX Library of NEX Server for Wii U & 3DS.", 
+    description="NEX/PRUDP Server for Wii U, 3DS and Switch.", 
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     classifiers=[
