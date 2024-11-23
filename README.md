@@ -3,7 +3,7 @@
 
 ## Overview
 - NEX is a server library used by games on the Wii U, 3DS and Switch which allow you to play online multiplayer.
-- Nintendo doesn't create the NEX Server from scratch, They are based on a library called `Quazal Rendez Vous`, Nintendo has modified this library so that it works with games for Nintendo Wii U, 3DS and Switch consoles.
+- Nintendo doesn't create the NEX Server from scratch, they are based on a library called `Quazal Rendez-Vous` created by Ubisoft, Nintendo has modified this library so that it works with games for Nintendo Wii U, 3DS and Switch consoles.
 
 ## Features
 - [ ] Quazal
