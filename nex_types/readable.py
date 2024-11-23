@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class Readable(ABC):
     @abstractmethod
     def string_length_size(self) -> int: pass

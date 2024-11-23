@@ -7,6 +7,5 @@ class Account:
         self.Username = username
         self.Password = password
 
-    @staticmethod
     def new_account(pid: PID, username: str, password: str) -> 'Account':
         return Account(pid, username, password)

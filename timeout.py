@@ -13,6 +13,6 @@ class Timeout:
     def rto(self) -> float:
         return self.timeout
 
-    @staticmethod
-    def new_timeout():
-        return Timeout()
+    @classmethod
+    def new_timeout(cls):
+        return cls()
