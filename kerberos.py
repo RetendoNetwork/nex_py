@@ -11,6 +11,7 @@ from byte_stream_out import ByteStreamOut
 from nex_types.buffer import Buffer
 from nex_types.datetime import DateTime
 
+
 class KerberosEncryption:
     def __init__(self, key):
         self.key = key
