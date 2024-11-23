@@ -2,6 +2,7 @@ from typing import TypeVar, Union
 
 T = TypeVar('T', bound=Union[int, float, complex])
 
+
 class Counter:
     def __init__(self, start: T) -> None:
         self.value: T = start
