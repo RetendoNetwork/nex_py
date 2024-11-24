@@ -9,6 +9,7 @@ from nex.nex_types.pid import PID
 from nex.byte_stream_in import ByteStreamIn
 from nex.byte_stream_out import ByteStreamOut
 from nex.nex_types.buffer import Buffer
+from nex.prudp import PRUDPServer
 from nex.nex_types._datetime import DateTime
 
 
@@ -56,7 +57,7 @@ def new_kerberos_ticket():
     return KerberosTicket()
 
 class KerberosTicketInternalData:
-    def __init__(self, server):
+    def __init__(self, server: PRUDPServer):
         self.server = server
         self.issued = DateTime
         self.source_pid = PID

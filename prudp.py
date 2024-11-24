@@ -45,6 +45,10 @@ class PRUDPV1Settings:
         self.signature_calculator = signature_calculator
 
 
+class PRUDPPacketInterface:
+    pass
+
+
 class PRUDPPacketV0:
     pass
 

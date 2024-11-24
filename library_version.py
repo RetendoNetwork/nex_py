@@ -21,7 +21,7 @@ class LibraryVersion:
         if not compare.startswith("v"):
             compare = "v" + compare
 
-        if not semver.VersionInfo.is_invalid(compare):
+        if not semver.VersionInfo.is_invalid(compare): # TODO - Fix unimplemented function
             return 0
 
         return semver.compare(self.semver, compare)
