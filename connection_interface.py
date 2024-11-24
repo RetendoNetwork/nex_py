@@ -1,8 +1,8 @@
 import socket
 from abc import ABC, abstractmethod
 
-from endpoint_interface import EndpointInterface
-from nex_types.pid import PID
+from nex.endpoint_interface import EndpointInterface
+from nex.nex_types.pid import PID
 
 
 class ConnectionInterface(ABC):

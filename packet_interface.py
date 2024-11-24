@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-# Delete the circular import error
+# Fix the circular import error
 if TYPE_CHECKING:
-    from rmc import RMC
-    from connection_interface import ConnectionInterface
+    from nex.rmc import RMC
+    from nex.connection_interface import ConnectionInterface
 
 
 class PacketInterface(ABC):

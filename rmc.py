@@ -1,9 +1,8 @@
-import struct
 from typing import Optional
 
-from byte_stream_in import ByteStreamIn
-from byte_stream_out import ByteStreamOut
-from endpoint_interface import EndpointInterface
+from nex.byte_stream_in import ByteStreamIn
+from nex.byte_stream_out import ByteStreamOut
+from nex.endpoint_interface import EndpointInterface
 
 
 class RMC:

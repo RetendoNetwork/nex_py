@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
-from packet_interface import PacketInterface
-from library_version import LibraryVersions
-from byte_stream_settings import ByteStreamSettings
-from error import Error
+from nex.packet_interface import PacketInterface
+from nex.library_version import LibraryVersions
+from nex.byte_stream_settings import ByteStreamSettings
+from nex.error import Error
 
 
 class EndpointInterface(ABC):

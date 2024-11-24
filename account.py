@@ -1,4 +1,4 @@
-from nex_types.pid import PID
+from nex.nex_types.pid import PID
 
 
 class Account:

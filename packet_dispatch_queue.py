@@ -1,6 +1,6 @@
 from counter import Counter
 
-from prudp_packet_interface import PRUDPPacketInterface
+from nex.prudp import PRUDPPacketInterface
 
 
 class PacketDispatchQueue:
@@ -8,7 +8,7 @@ class PacketDispatchQueue:
         self.queue = {}
         self.next_expected_sequence_id = Counter(2)
 
-    def queue(self, packet: 'PRUDPPacketInterface'):
+    def queue(self, packet: PRUDPPacketInterface):
         self.queue[packet.sequence_id()] = packet
 
     def get_next_to_dispatch(self):
@@ -17,7 +17,7 @@ class PacketDispatchQueue:
             return packet, True
         return None, False
 
-    def dispatched(self, packet: 'PRUDPPacketInterface'):
+    def dispatched(self, packet: PRUDPPacketInterface):
         self.next_expected_sequence_id.next()
         del self.queue[packet.sequence_id()]
 

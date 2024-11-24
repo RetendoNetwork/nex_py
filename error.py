@@ -1,7 +1,7 @@
 from typing import Optional
 
-from packet_interface import PacketInterface
-from result_codes import error_mask
+from nex.packet_interface import PacketInterface
+from nex.result_codes import error_mask
 
 
 class Error(Exception): 

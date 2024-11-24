@@ -1,5 +1,8 @@
 from copy import deepcopy
 
+from compression.dummy import Dummy
+from encryption.rc4 import RC4
+
 
 class StreamSettings:
     def __init__(self):
@@ -10,10 +13,10 @@ class StreamSettings:
         self.fault_detection_enabled = True
         self.initial_rtt = 0x2EE
         self.syn_initial_rtt = 0xFA
-        self.encryption_algorithm = self.new_rc4_encryption()
+        self.encryption_algorithm = RC4()
         self.extra_retransmit_timeout_multiplier = 1.0
         self.window_size = 8
-        self.compression_algorithm = self.new_dummy_compression()
+        self.compression_algorithm = Dummy()
         self.rtt_retransmit = 2
         self.retransmit_timeout_multiplier = 1.25
         self.max_silence_time = 10000

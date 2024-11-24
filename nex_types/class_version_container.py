@@ -1,6 +1,6 @@
-from readable import Readable
-from writable import Writable
-from map import Map
+from nex.nex_types.readable import Readable
+from nex.nex_types.writable import Writable
+from nex.nex_types.map import Map
 
 
 class ClassVersionContainer:

@@ -1,8 +1,8 @@
 from anynet import streams
 from crunch.buffer import Buffer
 
-from byte_stream_settings import ByteStreamSettings
-from library_version import LibraryVersions
+from nex.byte_stream_settings import ByteStreamSettings
+from nex.library_version import LibraryVersions
 
 
 class ByteStreamIn:
