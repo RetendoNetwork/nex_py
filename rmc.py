@@ -13,10 +13,10 @@ class RMC:
         self.is_success = bool
         self.is_hpp = bool
         self.protocol_id = 0
-        self.protocol_name = ""
+        self.protocol_name = String()
         self.call_id = 0
         self.method_id = 0
-        self.method_name = ""
+        self.method_name = String()
         self.error_code = 0
         self.version_container = ClassVersionContainer()
         self.parameters = b''
