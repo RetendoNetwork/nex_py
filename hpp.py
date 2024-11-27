@@ -14,7 +14,7 @@ from nex.rmc import RMC
 from nex.connection_interface import ConnectionInterface
 from nex_logger.logger import Logger
 from nex.library_version import LibraryVersions
-from nex.byte_stream_settings import ByteStreamSettings
+from nex.byte_stream import ByteStreamSettings
 from nex.service_protocol import ServiceProtocol
 from nex.packet_interface import PacketInterface
 from nex.kerberos import derive_kerberos_key
@@ -122,7 +122,7 @@ class HPPPacket:
         self.message = message
 
     @staticmethod
-    def new_hpp_packet(client, payload: bytes):
+    def new_hpp_packet(client: HPPClient, payload: bytes):
         hpp_packet = HPPPacket(client, payload)
         if payload:
             rmc_message = RMC.new_rmc_request(client.endpoint())
@@ -131,13 +131,13 @@ class HPPPacket:
             except Exception as e:
                 raise Exception(f"Failed to decode HPP request. {e}")
             hpp_packet.set_rmc_message(rmc_message)
-        return hpp_packet
+        return hpp_packet, None
 
 
 class HPPServer:
     def __init__(self):
         self.server = http.server()
-        self.access_key = str
+        self.access_key = ""
         self.library_versions = LibraryVersions()
         self.data_handlers: List[Callable] = []
         self.error_event_handlers: List[Callable] = []
@@ -145,8 +145,11 @@ class HPPServer:
         self.account_details_by_pid = None
         self.account_details_by_username = None
         self.use_verbose_rmc = bool
+    
+    def account_details_by_pid(self, pid: PID): pass
+    def account_details_by_username(self, username): pass
 
-    def register_service_protocol(self, protocol: 'ServiceProtocol'):
+    def register_service_protocol(self, protocol: ServiceProtocol):
         protocol.set_endpoint(self)
         self.on_data(protocol.handle_packet)
 
@@ -249,7 +252,7 @@ class HPPServer:
         print(f"Starting secure server on port {port}")
         self.server.serve_forever()
 
-    def send(self, packet: 'PacketInterface'):
+    def send(self, packet: PacketInterface):
         if isinstance(packet, HPPPacket):
             packet.message.is_hpp = True
             packet.payload = packet.message.bytes()
@@ -267,7 +270,7 @@ class HPPServer:
     def byte_stream_settings(self):
         return self.byte_stream_settings
 
-    def set_byte_stream_settings(self, byte_stream_settings: 'ByteStreamSettings'):
+    def set_byte_stream_settings(self, byte_stream_settings: ByteStreamSettings):
         self.byte_stream_settings = byte_stream_settings
 
     def use_verbose_rmc(self):
