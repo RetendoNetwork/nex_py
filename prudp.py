@@ -5,7 +5,7 @@ from Crypto.Cipher import ARC4
 from typing import Callable, List, Optional
 
 from nex.connection_interface import ConnectionInterface
-from nex.constants.stream_type import StreamType
+from stream_type import StreamType
 from nex.timeout import Timeout
 from nex.byte_stream import ByteStreamIn
 from nex.virtual_port import VirtualPort

@@ -1,4 +1,4 @@
-from nex.constants.stream_type import StreamType
+from stream_type import StreamType
 
 
 class VirtualPort:
