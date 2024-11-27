@@ -15,4 +15,4 @@ class VirtualPort:
         self.value = (self.value & 0xF0) | (stream_id & 0x0F)
 
     def get_stream_id(self):
-        return self.value & 0x0F
+        return (self.value & 0xF)
