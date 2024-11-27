@@ -39,6 +39,7 @@ class KerberosEncryption:
 def new_kerberos_encryption(key):
     return KerberosEncryption(key)
 
+
 class KerberosTicket:
     def __init__(self):
         self.session_key = None
@@ -54,6 +55,7 @@ class KerberosTicket:
 
 def new_kerberos_ticket():
     return KerberosTicket()
+
 
 class KerberosTicketInternalData:
     def __init__(self, server: PRUDPServer):
