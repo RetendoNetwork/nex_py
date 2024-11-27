@@ -17,6 +17,7 @@ from nex.library_version import LibraryVersions
 from nex.byte_stream import ByteStreamSettings
 from nex.service_protocol import ServiceProtocol
 from nex.packet_interface import PacketInterface
+from nex.account import Account
 from nex.kerberos import derive_kerberos_key
 
 
@@ -107,7 +108,7 @@ class HPPPacket:
         if not account:
             raise Exception("PID does not exist")
 
-        key = derive_kerberos_key(pid, account.password.encode())
+        key = derive_kerberos_key(pid, account.password)
         signature = self.calculate_signature(self.payload, key)
         return signature
 
@@ -146,8 +147,8 @@ class HPPServer:
         self.account_details_by_username = None
         self.use_verbose_rmc = bool
     
-    def account_details_by_pid(self, pid: PID): pass
-    def account_details_by_username(self, username): pass
+    def account_details_by_pid(self, pid: PID) -> Account: pass
+    def account_details_by_username(self, username) -> Account: pass
 
     def register_service_protocol(self, protocol: ServiceProtocol):
         protocol.set_endpoint(self)
