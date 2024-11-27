@@ -1,7 +1,6 @@
 from typing import Optional
 
-from nex.byte_stream_in import ByteStreamIn
-from nex.byte_stream_out import ByteStreamOut
+from nex.byte_stream import ByteStreamOut, ByteStreamIn
 from nex.endpoint_interface import EndpointInterface
 from nex.nex_types.class_version_container import ClassVersionContainer
 from nex.nex_types.string import String
@@ -114,7 +113,7 @@ class RMC:
     def encode_packed(self) -> bytes:
         stream = ByteStreamOut(self.endpoint.library_versions(), self.endpoint.byte_stream_settings())
 
-        protocol_id_flag = 0x80 if self.is_request else protocol_id_flag = 0
+        protocol_id_flag = 0x80 if self.is_request else 0
 
         if not self.is_hpp or (self.is_hpp and self.is_request):
             if self.protocol_id < 0x80:
