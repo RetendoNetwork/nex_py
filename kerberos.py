@@ -62,7 +62,7 @@ class KerberosTicketInternalData:
         self.server = server
         self.issued = DateTime
         self.source_pid = PID
-        self.session_key = None
+        self.session_key = bytearray
 
     def encrypt(self, key, stream: ByteStreamOut):
         self.issued.write_to(stream)
@@ -82,23 +82,28 @@ class KerberosTicketInternalData:
 
     def decrypt(self, stream: ByteStreamIn, key):
         if self.server.kerberos_ticket_version == 1:
-            ticket_key = stream.read(16)
-            data = stream.read()
+            ticket_key = Buffer(None)
+            data = Buffer(None)
             hash_key = hashlib.md5(key + ticket_key).digest()
             key = hash_key
 
+            stream = ByteStreamIn(data, stream.library_versions, stream.settings)
+
         encryption = KerberosEncryption(key)
         decrypted = encryption.decrypt(stream.read())
-        stream = io.BytesIO(decrypted)
+        stream = ByteStreamIn(decrypted, stream.library_versions, stream.settings)
 
-        self.issued = DateTime(stream)
-        self.source_pid = PID(stream)
-        self.session_key = stream.read(self.server.session_key_length)
+        timestamp = DateTime(0)
+        user_pid = PID(0)
+
+        self.issued = timestamp
+        self.source_pid = user_pid
+        self.session_key = stream.read_bytes_next(self.server.session_key_lengh)
 
 def new_kerberos_ticket_internal_data(server):
     return KerberosTicketInternalData(server)
 
-def derive_kerberos_key(pid, password):
+def derive_kerberos_key(pid: PID, password):
     iteration_count = 65000 + pid % 1024
     key = password
     for _ in range(iteration_count):
