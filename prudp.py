@@ -328,6 +328,7 @@ class PRUDPEndPoint:
 class PRUDPServer:
     def __init__(self):
         self.session_key_lengh = 32
+        self.kerberos_ticket_version = int
 
     def listen(self, port: int):
         self.listen_udp(port)

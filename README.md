@@ -12,7 +12,7 @@
 - [x] Mutex
 - [ ] PRUDP
 - [x] Timeout
-- [ ] Kerberos Authentication
+- [x] Kerberos Authentication
 
 ## Installation
 > [!WARNING]
