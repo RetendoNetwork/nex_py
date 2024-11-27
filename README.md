@@ -9,7 +9,9 @@
 - [ ] Quazal
 - [x] RMC
 - [x] HPP
+- [x] Mutex
 - [ ] PRUDP
+- [x] Timeout
 - [ ] Kerberos Authentication
 
 ## Installation
