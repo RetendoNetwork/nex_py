@@ -1,14 +1,15 @@
 import time
+import hashlib
 from Crypto.Cipher import ARC4
-from typing import Callable, List, Optional, TYPE_CHECKING
+from typing import Callable, List, Optional
 
-from connection_interface import ConnectionInterface
-from constants.stream_type import StreamType
-from constants.prudp_packet_types import PRUDPPacketTypes
-from timeout import Timeout
-from byte_stream_in import ByteStreamIn
-from virtual_port import VirtualPort
-from rmc import RMC
+from nex.connection_interface import ConnectionInterface
+from nex.constants.stream_type import StreamType
+from nex.constants.prudp_packet_types import PRUDPPacketTypes
+from nex.timeout import Timeout
+from nex.byte_stream import ByteStreamIn
+from nex.virtual_port import VirtualPort
+from nex.rmc import RMC
 
 
 class SlidingWindow:
@@ -46,7 +47,93 @@ class PRUDPV1Settings:
 
 
 class PRUDPPacketInterface:
-    pass
+    def copy(self) -> 'PRUDPPacketInterface': pass
+
+    def version(self) -> int: pass
+
+    def bytes(self) -> bytes: pass
+
+    def set_sender(self, sender: ConnectionInterface): pass
+
+    def sender(self) -> ConnectionInterface: pass
+
+    def flags(self, flag): pass
+
+    def has_flag(self, flag) -> bool: pass
+
+    def add_flag(self, flag): pass
+
+    def set_type(self, packet_type): pass
+
+    def type(self): pass
+
+    def set_source_virtual_port_stream_type(self, stream_type: StreamType): pass
+
+    def source_virtual_port_stream_type(self) -> StreamType: pass
+
+    def set_source_virtual_port_stream_id(self, port): pass
+
+    def source_virtual_port_stream_id(self): pass
+
+    def set_destination_virtual_port_stream_type(self, stream_type: StreamType): pass
+
+    def destination_virtual_port_stream_type(self) -> StreamType: pass
+
+    def set_destination_virtual_port_stream_id(self, port): pass
+
+    def destination_virtual_port_stream_id(self): pass
+
+    def session_id(self): pass
+
+    def set_session_id(self, session_id): pass
+
+    def sub_stream_id(self): pass
+
+    def set_sub_stream_id(self, sub_stream_id): pass
+
+    def sequence_id(self): pass
+
+    def set_sequence_id(self, sequence_id): pass
+
+    def payload(self): pass
+
+    def set_payload(self, payload): pass
+
+    def rmc_message(self) -> RMC: pass
+
+    def set_rmc_message(self, message: RMC): pass
+
+    def send_count(self): pass
+
+    def increment_send_count(self): pass
+
+    def sent_at(self) -> time.time: pass
+
+    def set_sent_at(self, time: time.time): pass
+
+    def get_timeout(self) -> Timeout: pass
+
+    def set_timeout(self, timeout: Timeout): pass
+
+    def decode(self): pass
+
+    def set_signature(self, signature): pass
+
+    def calculate_connection_signature(self, addr): pass
+
+    def calculate_signature(self, session_key, connection_signature): pass
+
+    def decrypt_payload(self): pass
+
+    def get_connection_signature(self): pass
+
+    def set_connection_signature(self, connection_signature): pass
+
+    def get_fragment_id(self): pass
+
+    def set_fragment_id(self, fragment_id): pass
+
+    def process_unreliable_crypto(self): pass
 
 
 class PRUDPPacketV0:
@@ -200,8 +287,16 @@ class PRUDPPacket:
     def set_timeout(self, timeout: Timeout):
         self.timeout = timeout
 
+    def combine_keys(self, key1, key2):
+        return hashlib.md5(key1 + key2).digest()
+		
+    def unreliable_packet_base_key(self, key):
+        part1 = self.combine_keys(key, bytes.fromhex("18d8233437e4e3fe"))
+        part2 = self.combine_keys(key, bytes.fromhex("233e600123cdab80"))
+        return part1 + part2
+
     def process_unreliable_crypto(self) -> bytes:
-        unique_key = bytearray(self.sender.unreliable_packet_base_key)
+        unique_key = bytearray(self.unreliable_packet_base_key)
         unique_key[0] = (unique_key[0] + self.sequence_id) & 0xFF
         unique_key[1] = (unique_key[1] + (self.sequence_id >> 8)) & 0xFF
         unique_key[31] = (unique_key[31] + self.session_id) & 0xFF
@@ -217,8 +312,13 @@ class PRUDPConnection:
 
 
 class PRUDPEndPoint:
-    pass
+    def compute_retransmit_timeout(packet: PRUDPPacketInterface):
+        pass # TODO
 
 
 class PRUDPServer:
-    pass
+    def listen(self, port: int):
+        self.listen_udp(port)
+
+    def listen_udp(self, port: int):
+        pass
