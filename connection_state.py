@@ -2,12 +2,8 @@ from enum import Enum
 
 
 class ConnectionState(Enum):
-    StateNotConnected = 0
-
-    StateConnecting = 1
-
-    StateConnected = 2
-
-    StateDisconnecting = 3
-
-    StateFaulty = 4
+    STATE_NOT_CONNECTED = 0
+    STATE_CONNECTING = 1
+    STATE_CONNECTED = 2
+    STATE_DISCONNECTING = 3
+    STATE_FAULTY = 4
