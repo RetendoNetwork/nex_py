@@ -1,4 +1,5 @@
 from counter import Counter
+from typing import MutableSequence
 
 from nex.prudp import PRUDPPacketInterface
 
@@ -12,7 +13,7 @@ class PacketDispatchQueue:
         self.queue[packet.sequence_id()] = packet
 
     def get_next_to_dispatch(self):
-        packet = self.queue.get(self.next_expected_sequence_id.value)
+        packet = self.queue(self.next_expected_sequence_id)
         if packet:
             return packet, True
         return None, False
@@ -22,4 +23,4 @@ class PacketDispatchQueue:
         del self.queue[packet.sequence_id()]
 
     def purge(self):
-        self.queue.clear()
+        MutableSequence.clear(self.queue)
