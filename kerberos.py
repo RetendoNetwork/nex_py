@@ -60,9 +60,9 @@ def new_kerberos_ticket():
 class KerberosTicketInternalData:
     def __init__(self, server: PRUDPServer):
         self.server = server
-        self.issued = DateTime
-        self.source_pid = PID
-        self.session_key = bytearray
+        self.issued = DateTime()
+        self.source_pid = PID()
+        self.session_key = bytearray()
 
     def encrypt(self, key, stream: ByteStreamOut):
         self.issued.write_to(stream)
@@ -98,7 +98,7 @@ class KerberosTicketInternalData:
 
         self.issued = timestamp
         self.source_pid = user_pid
-        self.session_key = stream.read_bytes_next(self.server.session_key_lengh)
+        self.session_key = stream.read(self.server.session_key_lengh)
 
 def new_kerberos_ticket_internal_data(server):
     return KerberosTicketInternalData(server)

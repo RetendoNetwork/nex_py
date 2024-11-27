@@ -1,15 +1,24 @@
 import time
 import hashlib
+from enum import IntEnum, unique
 from Crypto.Cipher import ARC4
 from typing import Callable, List, Optional
 
 from nex.connection_interface import ConnectionInterface
 from nex.constants.stream_type import StreamType
-from nex.constants.prudp_packet_types import PRUDPPacketTypes
 from nex.timeout import Timeout
 from nex.byte_stream import ByteStreamIn
 from nex.virtual_port import VirtualPort
 from nex.rmc import RMC
+
+
+@unique
+class PRUDPPacketTypes(IntEnum):
+    SYN_PACKET = 0x0
+    CONNECT_PACKET= 0x1
+    DATA_PACKET = 0x2
+    DISCONNECT_PACKET = 0x3
+    PING_PACKET = 0x4
 
 
 class SlidingWindow:
@@ -317,6 +326,9 @@ class PRUDPEndPoint:
 
 
 class PRUDPServer:
+    def __init__(self):
+        self.session_key_lengh = 32
+
     def listen(self, port: int):
         self.listen_udp(port)
 
