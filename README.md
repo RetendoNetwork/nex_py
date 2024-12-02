@@ -21,5 +21,5 @@
 - Then, go to cmd and run `git clone https://github.com/RetendoNetwork/nex.git`.
 - After run on the cmd `cd nex`, and run `python setup.py install`.
 
-## License
-- This project is licensed under the GNU Affero General Public License version 3
+## Credits
+- Kinnay for the Original Codes from NintendoClients.
