@@ -1,204 +1,319 @@
-from typing import Optional
+from anynet import util
+import contextlib
+import struct
+import anyio
 
-from nex.byte_stream import ByteStreamOut, ByteStreamIn
-from nex.endpoint_interface import EndpointInterface
-from nex.nex_types.class_version_container import ClassVersionContainer
-from nex.nex_types.string import String
+import prudp, common, streams
+from common import logger
 
 
-class RMC:
-    def __init__(self, endpoint: EndpointInterface):
-        self.endpoint = endpoint
-        self.is_request = bool
-        self.is_success = bool
-        self.is_hpp = bool
-        self.protocol_id = 0
-        self.protocol_name = String()
-        self.call_id = 0
-        self.method_id = 0
-        self.method_name = String()
-        self.error_code = 0
-        self.version_container = ClassVersionContainer()
-        self.parameters = b''
+class RMCResponse:
+	pass
 
-    def copy(self):
-        copied = RMC(self.endpoint)
-        copied.is_request = self.is_request
-        copied.is_success = self.is_success
-        copied.is_hpp = self.is_hpp
-        copied.protocol_id = self.protocol_id
-        copied.protocol_name = self.protocol_name
-        copied.call_id = self.call_id
-        copied.method_id = self.method_id
-        copied.method_name = self.method_name
-        copied.error_code = self.error_code
-        copied.parameters = self.parameters[:]
-        return copied
 
-    def from_bytes(self, data: bytes) -> Optional[Exception]:
-        if self.endpoint.use_verbose_rmc():
-            return self.decode_verbose(data)
-        else:
-            return self.decode_packed(data)
+class RMCMessage:
+	REQUEST = 0
+	RESPONSE = 1
+	
+	def __init__(self):
+		self.mode = RMCMessage.REQUEST
+		self.protocol = None
+		self.method = None
+		self.call_id = 0
+		self.error = -1
+		self.body = b""
+		
+	@staticmethod
+	def prepare(mode, protocol, method, call_id, body):
+		inst = RMCMessage()
+		inst.mode = mode
+		inst.protocol = protocol
+		inst.method = method
+		inst.call_id = call_id
+		inst.body = body
+		return inst
+		
+	@staticmethod
+	def request(protocol, method, call_id, body):
+		return RMCMessage.prepare(
+			RMCMessage.REQUEST, protocol, method, call_id, body
+		)
+		
+	@staticmethod
+	def response(protocol, method, call_id, body):
+		return RMCMessage.prepare(
+			RMCMessage.RESPONSE, protocol, method, call_id, body
+		)
+		
+	@staticmethod
+	def error(protocol, method, call_id, error):
+		inst = RMCMessage()
+		inst.mode = RMCMessage.RESPONSE
+		inst.protocol = protocol
+		inst.method = method
+		inst.call_id = call_id
+		inst.error = error
+		return inst
+	
+	@staticmethod
+	def parse(data):
+		inst = RMCMessage()
+		inst.decode(data)
+		return inst
+		
+	def encode(self):
+		stream = streams.StreamOut()
+		
+		flag = 0x80 if self.mode == self.REQUEST else 0
+		if self.protocol < 0x80:
+			stream.u8(self.protocol | flag)
+		else:
+			stream.u8(0x7F | flag)
+			stream.u16(self.protocol)
+		
+		if self.mode == self.REQUEST:
+			stream.u32(self.call_id)
+			stream.u32(self.method)
+			stream.write(self.body)
+		else:
+			if self.error != -1 and self.error & 0x80000000:
+				stream.bool(False)
+				stream.u32(self.error)
+				stream.u32(self.call_id)
+			else:
+				stream.bool(True)
+				stream.u32(self.call_id)
+				stream.u32(self.method | 0x8000)
+				stream.write(self.body)
+		return struct.pack("I", stream.size()) + stream.get()
+	
+	def decode(self, data):
+		stream = streams.StreamIn(data)
+		
+		length = stream.u32()
+		if length != stream.size() - 4:
+			raise ValueError("RMC message has unexpected size")
+		
+		protocol = stream.u8()
+		self.protocol = protocol & ~0x80
+		if self.protocol == 0x7F:
+			self.protocol = stream.u16()
+		
+		if protocol & 0x80:
+			self.mode = self.REQUEST
+			self.call_id = stream.u32()
+			self.method = stream.u32()
+			self.body = stream.readall()
+		else:
+			self.mode = self.RESPONSE
+			if stream.bool():
+				self.call_id = stream.u32()
+				self.method = stream.u32() & ~0x8000
+				self.body = stream.readall()
+			else:
+				self.error = stream.u32()
+				self.call_id = stream.u32()
+				if not stream.eof():
+					raise ValueError("RMC error message is bigger than expected")
 
-    def decode_packed(self, data: bytes) -> Optional[Exception]:
-        stream = ByteStreamIn(data, self.endpoint.library_versions(), self.endpoint.byte_stream_settings())
 
-        try:
-            length = stream.read_uint32_le()
-            if stream.remaining() != length:
-                raise ValueError("RMC Message has unexpected size")
+class RMCClient:
+	def __init__(self, client):
+		self.client = client
+		self.call_id = 1
+		
+		if self.client.minor_version() >= 3:
+			0 = True
+		
+		self.servers = {}
+		self.requests = {}
+		self.responses = {}
+		
+		self.closed = False
 
-            protocol_id = stream.read_uint8()
-            self.protocol_id = protocol_id & ~0x80
+	async def __aenter__(self): return self
+	async def __aexit__(self, typ, val, tb):
+		await self.cleanup()
+	
+	def register_server(self, server):
+		if server.PROTOCOL_ID in self.servers:
+			raise ValueError("Server with protocol id %i already exists" %server.PROTOCOL_ID)
+		self.servers[server.PROTOCOL_ID] = server
+	
+	async def cleanup(self):
+		if not self.closed:
+			self.closed = True
+			for event in self.requests.values():
+				event.set()
+			
+			for server in self.servers.values():
+				await server.logout(self)
+	
+	async def close(self):
+		if not self.closed:
+			await self.cleanup()
+			await self.client.close()
+	
+	async def disconnect(self):
+		if not self.closed:
+			await self.cleanup()
+			await self.client.disconnect()
+	
+	async def start(self, servers):
+		for server in servers:
+			self.register_server(server)
+		
+		while not self.closed:
+			try:
+				data = await self.client.recv()
+			except anyio.EndOfStream:
+				logger.info("Connection was closed")
+				await self.cleanup()
+				return
+			
+			message = RMCMessage.parse(data)
+			if message.mode == RMCMessage.REQUEST:
+				logger.info(
+					"Received RMC request: protocol=%i method=%i call=%i",
+					message.protocol, message.method, message.call_id
+				)
+				await self.handle_request(message)
+			else:
+				logger.info(
+					"Received RMC response: protocol=%i method=%s call=%i",
+					message.protocol, message.method, message.call_id
+				)
+				if message.call_id in self.requests:
+					self.responses[message.call_id] = message
+					event = self.requests.pop(message.call_id)
+					event.set()
+				else:
+					logger.warning("RMC response has invalid call id")
+	
+	async def handle_request(self, request):
+		input = streams.StreamIn(request.body)
+		output = streams.StreamOut()
+		
+		result = common.Result()
+		if request.protocol in self.servers:
+			try:
+				await self.servers[request.protocol].handle(self, request.method, input, output)
+			except common.RMCError as e:
+				logger.warning("RMC failed: %s" %e)
+				result = e.result()
+			except Exception as e:
+				logger.warning("Exception occurred while handling a method call")
+				
+				if isinstance(e, TypeError): result = common.Result.error("PythonCore::TypeError")
+				elif isinstance(e, IndexError): result = common.Result.error("PythonCore::IndexError")
+				elif isinstance(e, MemoryError): result = common.Result.error("PythonCore::MemoryError")
+				elif isinstance(e, KeyError): result = common.Result.error("PythonCore::KeyError")
+				else: result = common.Result.error("PythonCore::Exception")
+			except anyio.ExceptionGroup as e:
+				logger.warning("Multiple exceptions occurred while handling a method call")
+				
+				filtered = []
+				for exc in e.exceptions:
+					if not isinstance(exc, Exception):
+						raise
+				
+				result = common.Result.error("PythonCore::Exception")
+			
+			if getattr(self.servers[request.protocol], "NORESPONSE", False):
+				return
+		else:
+			logger.warning("Received RMC request with unimplemented protocol id: %i", request.protocol)
+			result = common.Result.error("Core::NotImplemented")
+		
+		if result.is_success():
+			response = RMCMessage.response(
+				request.protocol, request.method,
+				request.call_id, output.get()
+			)
+		else:
+			response = RMCMessage.error(
+				request.protocol, request.method,
+				request.call_id, result.code()
+			)
+		await self.client.send(response.encode())
+	
+	async def request(self, protocol, method, body, noresponse=False):
+		if self.closed:
+			raise RuntimeError("RMC connection is closed")
+		
+		call_id = self.call_id
+		self.call_id = (self.call_id + 1) & 0xFFFFFFFF
+		
+		if not noresponse:
+			event = anyio.Event()
+			self.requests[call_id] = event
+		
+		message = RMCMessage.request(protocol, method, call_id, body)
+		await self.client.send(message.encode())
+		
+		if not noresponse:
+			await event.wait()
+			
+			if self.closed:
+				raise RuntimeError("RMC connection is closed")
+			
+			message = self.responses.pop(call_id)
+			if message.error != -1:
+				raise common.RMCError(message.error)
+			return message.body
+	
+	def pid(self): return self.client.pid()
+	
+	def local_address(self):
+		return self.client.local_address()
+	def remote_address(self):
+		return self.client.remote_address()
+	
+	def local_sid(self):
+		return self.client.local_sid()
+	def remote_sid(self):
+		return self.client.remote_sid()
 
-            if self.protocol_id == 0x7F:
-                self.protocol_id = stream.read_uint16_le()
 
-            if protocol_id & 0x80:
-                self.is_request = True
-                self.call_id = stream.read_uint32_le()
-                self.method_id = stream.read_uint32_le()
-                self.parameters = stream.read_remaining()
-            else:
-                self.is_request = False
-                self.is_success = stream.read_bool()
-                if self.is_success:
-                    self.call_id = stream.read_uint32_le()
-                    self.method_id = stream.read_uint32_le() & ~0x8000
-                    self.parameters = stream.read_remaining()
-                else:
-                    self.error_code = stream.read_uint32_le()
-                    self.call_id = stream.read_uint32_le()
-        except Exception as e:
-            return e
+@contextlib.asynccontextmanager
+async def connect(host, port, vport=1, context=None, credentials=None, servers=[]):
+	logger.info("Connecting RMC client to %s:%i:%i", host, port, vport)
+	async with prudp.connect(host, port, vport, 10, context, credentials) as client:
+		client = RMCClient(client)
+		async with client:
+			async with util.create_task_group() as group:
+				group.start_soon(client.start, servers)
+				yield client
+	logger.info("RMC client is closed")
 
-        return None
+@contextlib.asynccontextmanager
+async def serve(servers, host="", port=0, vport=1, context=None, key=None):
+	async def handle(client):
+		host, port = client.remote_address()
+		logger.info("New RMC connection: %s:%i", host, port)
+		
+		client = RMCClient(client)
+		async with client:
+			await client.start(servers)
+	
+	logger.info("Starting RMC server at %s:%i:%i", host, port, vport)
+	async with prudp.serve(handle, host, port, vport, 10, context, key):
+		yield
+	logger.info("RMC server is closed")
 
-    def decode_verbose(self, data: bytes) -> Optional[Exception]:
-        stream = ByteStreamIn(data, self.endpoint.library_versions(), self.endpoint.byte_stream_settings())
+@contextlib.asynccontextmanager
+async def serve_on_transport(servers, transport, port, key=None):
+	async def handle(client):
+		host, port = client.remote_address()
+		logger.info("New RMC connection: %s:%i", host, port)
+		
+		client = RMCClient(client)
+		async with client:
+			await client.start(servers)
+	
+	logger.info("Starting RMC server at PRUDP port %i", port)
+	async with transport.serve(handle, port, 10, key):
+		yield
+	logger.info("RMC server is closed")
 
-        try:
-            length = stream.read_uint32_le()
-            if stream.remaining() != length:
-                raise ValueError("RMC Message has unexpected size")
-
-            self.protocol_name = String("")
-            self.is_request = stream.read_bool()
-            if self.is_request:
-                self.call_id = stream.read_uint32_le()
-                self.method_name = String("")
-                self.version_container = ClassVersionContainer.new_class_version_container()
-                self.parameters = stream.read_remaining()
-            else:
-                self.is_success = stream.read_bool()
-                if self.is_success:
-                    self.call_id = stream.read_uint32_le()
-                    self.method_name = String("")
-                    self.parameters = stream.read_remaining()
-                else:
-                    self.error_code = stream.read_uint32_le()
-                    self.call_id = stream.read_uint32_le()
-        except Exception as e:
-            return e
-
-        return None
-
-    def bytes(self) -> bytes:
-        if self.endpoint.use_verbose_rmc():
-            return self.encode_verbose()
-        else:
-            return self.encode_packed()
-
-    def encode_packed(self) -> bytes:
-        stream = ByteStreamOut(self.endpoint.library_versions(), self.endpoint.byte_stream_settings())
-
-        protocol_id_flag = 0x80 if self.is_request else 0
-
-        if not self.is_hpp or (self.is_hpp and self.is_request):
-            if self.protocol_id < 0x80:
-                stream.write_uint8(self.protocol_id | protocol_id_flag)
-            else:
-                stream.write_uint8(0x7F | protocol_id_flag)
-                stream.write_uint16_le(self.protocol_id)
-
-        if self.is_request:
-            stream.write_uint32_le(self.call_id)
-            stream.write_uint32_le(self.method_id)
-            if self.parameters != None & len(self.parameters):
-                stream.write_bytes_next(self.parameters)
-        else:
-            stream.write_bool(self.is_success)
-            if self.is_success:
-                stream.write_uint32_le(self.call_id)
-                stream.write_uint32_le(self.method_id | 0x8000)
-                if self.parameters != None & len(self.parameters):
-                    stream.write_bytes_next(self.parameters)
-            else:
-                stream.write_uint32_le(self.error_code)
-                stream.write_uint32_le(self.call_id)
-
-        serialized = stream.bytes()
-
-        message = ByteStreamOut(self.endpoint.library_versions(), self.endpoint.byte_stream_settings())
-        message.write_uint32_le(len(serialized))
-        message.write_bytes_next(serialized)
-
-        return message.bytes()
-
-    def encode_verbose(self) -> bytes:
-        stream = ByteStreamOut(self.endpoint.library_versions(), self.endpoint.byte_stream_settings())
-
-        self.protocol_name.write_to(stream)
-        stream.write_bool(self.is_request)
-        if self.is_request:
-            stream.write_uint32_le(self.call_id)
-            self.method_name.write_to(stream)
-            if self.version_container:
-                self.method_name.write_to(stream)
-            else:
-                stream.write_uint32_le(0)
-            if self.parameters:
-                stream.write_bytes_next(self.parameters)
-        else:
-            stream.write_bool(self.is_success)
-            if self.is_success:
-                stream.write_uint32_le(self.call_id)
-                self.method_name.write_to(stream)
-                if self.parameters:
-                    stream.write_bytes_next(self.parameters)
-            else:
-                stream.write_uint32_le(self.error_code)
-                stream.write_uint32_le(self.call_id)
-
-        serialized = stream.bytes()
-
-        message = ByteStreamOut(self.endpoint.byte_stream_settings())
-        message.write_uint32_le(len(serialized))
-        message.write_bytes_next(serialized)
-
-        return message.bytes()
-
-    def new_rmc_message(endpoint: EndpointInterface):
-        return RMC(endpoint)
-
-    def new_rmc_request(endpoint: EndpointInterface):
-        msg = RMC(endpoint)
-        msg.is_request = True
-        return msg
-
-    def new_rmc_success(endpoint: EndpointInterface, parameters):
-        msg = RMC(endpoint)
-        msg.is_request = False
-        msg.is_success = True
-        msg.parameters = parameters
-        return msg
-
-    def new_rmc_error(endpoint: EndpointInterface, error_code):
-        if error_code & 0x8000 == 0:
-            error_code |= 0x8000
-        msg = RMC(endpoint)
-        msg.is_request = False
-        msg.is_success = False
-        msg.error_code = error_code
-        return msg
+serve_prudp = serve_on_transport

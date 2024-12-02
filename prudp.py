@@ -1,569 +1,1512 @@
-import time
-import os
-import hashlib
-import threading
-import socket
-import concurrent.futures
-from enum import IntEnum, unique
 from Crypto.Cipher import ARC4
-from typing import Callable, List, Optional
-from websockets.client import ClientProtocol
+from anynet import udp, tls, websocket, util, \
+	scheduler, streams, queue
+from enum import Enum
+import contextlib
+import hashlib
+import struct
+import random
+import socket
+import anyio
+import zlib
+import hmac
+import time
 
-from nex_logger.logger import Logger
-from nex.connection_interface import ConnectionInterface
-from nex.stream_type import StreamType
-from nex.stream_settings import StreamSettings
-from nex.timeout import Timeout
-from nex.byte_stream import ByteStreamIn
-from nex.virtual_port import VirtualPort
-from nex.rmc import RMC
-from nex.account import Account
-from nex.counter import Counter
-from library_version import LibraryVersions
-from byte_stream import ByteStreamSettings
-from packet_interface import PacketInterface
-from mutex import MutexMap
+import kerberos, streams as streams_nex
+from common import SlidingWindow, SequenceCounter, SequenceMgr, logger
 
 
-logger = Logger()
-
-@unique
-class PRUDPPacketTypes(IntEnum):
-    SYN_PACKET = 0x0
-    CONNECT_PACKET= 0x1
-    DATA_PACKET = 0x2
-    DISCONNECT_PACKET = 0x3
-    PING_PACKET = 0x4
+class PRUDPTransportTypes(Enum):
+	TRANSPORT_UDP = 0
+	TRANSPORT_TCP = 1
+	TRANSPORT_WEBSOCKET = 2
 
 
-class SlidingWindow:
-    pass
+class PRUDPPacketTypes(Enum):
+	SYN_PACKET = 0
+	CONNECT_PACKET = 1
+	DATA_PACKET = 2
+	DISCONNECT_PACKET = 3
+	PING_PACKET = 4
 
 
-class PRUDPV0Settings:
-    def __init__(self, 
-                 is_quazal_mode: bool = False,
-                 encrypted_connect: bool = False,
-                 legacy_connection_signature: bool = False,
-                 use_enhanced_checksum: bool = False,
-                 connection_signature_calculator: Optional[Callable] = None,
-                 signature_calculator: Optional[Callable] = None,
-                 data_signature_calculator: Optional[Callable] = None,
-                 checksum_calculator: Optional[Callable] = None):
-        self.is_quazal_mode = is_quazal_mode
-        self.encrypted_connect = encrypted_connect
-        self.legacy_connection_signature = legacy_connection_signature
-        self.use_enhanced_checksum = use_enhanced_checksum
-        self.connection_signature_calculator = connection_signature_calculator
-        self.signature_calculator = signature_calculator
-        self.data_signature_calculator = data_signature_calculator
-        self.checksum_calculator = checksum_calculator
+class PRUDPPacketFlags(Enum):
+	FLAG_ACK = 1
+	FLAG_RELIABLE = 2
+	FLAG_NEED_ACK = 4
+	FLAG_HAS_SIZE = 8
+	FLAG_MULTI_ACK = 0x200
 
 
-class PRUDPV1Settings:
-    def __init__(self, 
-                 legacy_connection_signature: bool = False,
-                 connection_signature_calculator: Optional[Callable] = None,
-                 signature_calculator: Optional[Callable] = None):
-        self.legacy_connection_signature = legacy_connection_signature
-        self.connection_signature_calculator = connection_signature_calculator
-        self.signature_calculator = signature_calculator
+class PRUDPConnectionState(Enum):
+	STATE_CONNECTING = 0
+	STATE_CONNECTED = 1
+	STATE_DISCONNECTING = 2
+	STATE_DISCONNECTED = 3
+
+TYPE_NAMES = ["SYN_PACKET", "CONNECT_PACKET", "DATA_PACKET", "DISCONNECT_PACKET", "PING_PACKET"]
+
+FLAG_NAMES = {
+	PRUDPPacketFlags.FLAG_ACK: "ACK",
+	PRUDPPacketFlags.FLAG_NEED_ACK: "NEED_ACK",
+	PRUDPPacketFlags.FLAG_MULTI_ACK: "MULTI_ACK",
+	PRUDPPacketFlags.FLAG_RELIABLE: "RELIABLE",
+	PRUDPPacketFlags.FLAG_HAS_SIZE: "HAS_SIZE"
+}
+
+FLAG_LIST = [PRUDPPacketFlags.FLAG_ACK, PRUDPPacketFlags.FLAG_NEED_ACK, PRUDPPacketFlags.FLAG_MULTI_ACK, PRUDPPacketFlags.FLAG_RELIABLE, PRUDPPacketFlags.FLAG_HAS_SIZE]
+
+OPTION_SUPPORT = 0
+OPTION_CONNECTION_SIG = 1
+OPTION_FRAGMENT_ID = 2
+OPTION_UNRELIABLE_SEQ_ID = 3
+OPTION_MAX_SUBSTREAM_ID = 4
+OPTION_CONNECTION_SIG_LITE = 128
+
+OPTIONS = {
+	OPTION_SUPPORT: (4, "OPTION_SUPPORT", "I"),
+	OPTION_CONNECTION_SIG: (16, "OPTION_CONNECTION_SIG", "16s"),
+	OPTION_FRAGMENT_ID: (1, "OPTION_FRAGMENT_ID", "B"),
+	OPTION_UNRELIABLE_SEQ_ID: (2, "OPTION_UNRELIABLE_SEQ_ID", "H"),
+	OPTION_MAX_SUBSTREAM_ID: (1, "OPTION_MAX_SUBSTREAM_ID", "B"),
+	OPTION_CONNECTION_SIG_LITE: (16, "OPTION_CONNECTION_SIG_LITE", "16s")
+}
 
 
-class PRUDPPacketInterface:
-    def copy(self) -> 'PRUDPPacketInterface': pass
+def encode_options(options):
+	data = b""
+	for k, v in options.items():
+		size, name, type = OPTIONS[k]
+		data += struct.pack("<BB%s" %type, k, size, v)
+	return data
 
-    def version(self) -> int: pass
-
-    def bytes(self) -> bytes: pass
-
-    def set_sender(self, sender: ConnectionInterface): pass
-
-    def sender(self) -> ConnectionInterface: pass
-
-    def flags(self, flag): pass
-
-    def has_flag(self, flag) -> bool: pass
-
-    def add_flag(self, flag): pass
-
-    def set_type(self, packet_type): pass
-
-    def type(self): pass
-
-    def set_source_virtual_port_stream_type(self, stream_type: StreamType): pass
-
-    def source_virtual_port_stream_type(self) -> StreamType: pass
-
-    def set_source_virtual_port_stream_id(self, port): pass
-
-    def source_virtual_port_stream_id(self): pass
-
-    def set_destination_virtual_port_stream_type(self, stream_type: StreamType): pass
-
-    def destination_virtual_port_stream_type(self) -> StreamType: pass
-
-    def set_destination_virtual_port_stream_id(self, port): pass
-
-    def destination_virtual_port_stream_id(self): pass
-
-    def session_id(self): pass
-
-    def set_session_id(self, session_id): pass
-
-    def sub_stream_id(self): pass
-
-    def set_sub_stream_id(self, sub_stream_id): pass
-
-    def sequence_id(self): pass
-
-    def set_sequence_id(self, sequence_id): pass
-
-    def payload(self): pass
-
-    def set_payload(self, payload): pass
-
-    def rmc_message(self) -> RMC: pass
-
-    def set_rmc_message(self, message: RMC): pass
-
-    def send_count(self): pass
-
-    def increment_send_count(self): pass
-
-    def sent_at(self) -> time.time: pass
-
-    def set_sent_at(self, time: time.time): pass
-
-    def get_timeout(self) -> Timeout: pass
-
-    def set_timeout(self, timeout: Timeout): pass
-
-    def decode(self): pass
-
-    def set_signature(self, signature): pass
-
-    def calculate_connection_signature(self, addr): pass
-
-    def calculate_signature(self, session_key, connection_signature): pass
-
-    def decrypt_payload(self): pass
-
-    def get_connection_signature(self): pass
-
-    def set_connection_signature(self, connection_signature): pass
-
-    def get_fragment_id(self): pass
-
-    def set_fragment_id(self, fragment_id): pass
-
-    def process_unreliable_crypto(self): pass
-
-
-class PRUDPPacketV0:
-    pass
-
-
-class PRUDPPacketV1:
-    pass
-
-
-class PRUDPPacketLite:
-    pass
-
+def decode_options(data):
+	options = {}
+	stream = streams.StreamIn(data, "<")
+	while not stream.eof():
+		type = stream.u8()
+		length = stream.u8()
+		
+		if type not in OPTIONS:
+			raise ValueError("(Opt) Unrecognized option type: %i" %type)
+		
+		expected_length, name, format = OPTIONS[type]
+		if length != expected_length:
+			raise ValueError("(Opt) Invalid option length in %s" %name)
+		
+		if type in options:
+			raise ValueError("(Opt) %s is present more than once" %name)
+		
+		value = struct.unpack("<" + format, stream.read(length))[0]
+		options[type] = value
+	return options
+	
 
 class PRUDPPacket:
-    def __init__(self, server: 'PRUDPServer', sender: 'PRUDPConnection', read_stream: ByteStreamIn, version, source_virtual_port: VirtualPort, destination_virtual_port: VirtualPort, packet_type, flags, session_id, substream_id, signature, sequence_id, connection_signature, fragment_id, payload, message: RMC, send_count, sent_at: time.time, timeout: Timeout):
-        self.server = server
-        self.sender = sender
-        self.read_stream = read_stream
-        self.version = version
-        self.source_virtual_port = source_virtual_port
-        self.destination_virtual_port = destination_virtual_port
-        self.packet_type = packet_type
-        self.flags = flags
-        self.session_id = session_id
-        self.substream_id = substream_id
-        self.signature = signature
-        self.sequence_id = sequence_id
-        self.connection_signature = connection_signature
-        self.fragment_id = fragment_id
-        self.payload = payload
-        self.message = message
-        self.send_count = send_count
-        self.sent_at = sent_at
-        self.timeout = timeout
-
-    def set_sender(self, sender: ConnectionInterface):
-        self.sender = sender
-
-    def get_sender(self) -> ConnectionInterface:
-        return self.sender
-
-    def get_flags(self):
-        return self.flags
-
-    def has_flag(self, flag) -> bool:
-        return self.flags & flag != 0
-
-    def add_flag(self, flag):
-        self.flags |= flag
-
-    def set_type(self, packet_type):
-        self.packet_type = packet_type
-
-    def get_type(self):
-        return self.packet_type
-
-    def set_source_virtual_port_stream_type(self, stream_type: StreamType):
-        self.source_virtual_port.set_stream_type(stream_type)
-
-    def get_source_virtual_port_stream_type(self) -> StreamType:
-        return self.source_virtual_port.get_stream_type()
-
-    def set_source_virtual_port_stream_id(self, port):
-        self.source_virtual_port.set_stream_id(port)
-
-    def get_source_virtual_port_stream_id(self):
-        return self.source_virtual_port.get_stream_id()
-
-    def set_destination_virtual_port_stream_type(self, stream_type: StreamType):
-        self.destination_virtual_port.set_stream_type(stream_type)
-
-    def get_destination_virtual_port_stream_type(self) -> StreamType:
-        return self.destination_virtual_port.get_stream_type()
-
-    def set_destination_virtual_port_stream_id(self, port):
-        self.destination_virtual_port.set_stream_id(port)
-
-    def get_destination_virtual_port_stream_id(self):
-        return self.destination_virtual_port.get_stream_id()
-
-    def get_session_id(self):
-        return self.session_id
-
-    def set_session_id(self, session_id):
-        self.session_id = session_id
-
-    def get_substream_id(self):
-        return self.substream_id
-
-    def set_substream_id(self, substream_id):
-        self.substream_id = substream_id
-
-    def set_signature(self, signature: bytes):
-        self.signature = signature
-
-    def get_sequence_id(self):
-        return self.sequence_id
-
-    def set_sequence_id(self, sequence_id):
-        self.sequence_id = sequence_id
-
-    def get_payload(self) -> bytes:
-        return self.payload
-
-    def set_payload(self, payload: bytes):
-        self.payload = payload
-
-    def decrypt_payload(self) -> bytes:
-        payload = self.payload
-
-        if self.packet_type == PRUDPPacketTypes.DATA_PACKET:
-            sliding_window = self.sender.sliding_window(self.get_substream_id())
-            payload = sliding_window.stream_settings.encryption_algorithm.decrypt(payload)
-
-        return payload
-
-    def get_connection_signature(self) -> bytes:
-        return self.connection_signature
-
-    def set_connection_signature(self, connection_signature: bytes):
-        self.connection_signature = connection_signature
-
-    def get_fragment_id(self):
-        return self.fragment_id
-
-    def set_fragment_id(self, fragment_id):
-        self.fragment_id = fragment_id
-
-    def get_rmc_message(self) -> RMC:
-        return self.message
-
-    def set_rmc_message(self, message: RMC):
-        self.message = message
-
-    def get_send_count(self):
-        return self.send_count
-
-    def increment_send_count(self):
-        self.send_count += 1
-
-    def get_sent_at(self):
-        return self.sent_at
-
-    def set_sent_at(self, sent_at_time: time.time):
-        self.sent_at = sent_at_time
-
-    def get_timeout(self) -> Timeout:
-        return self.timeout
-
-    def set_timeout(self, timeout: Timeout):
-        self.timeout = timeout
-
-    def combine_keys(self, key1, key2):
-        return hashlib.md5(key1 + key2).digest()
+	def __init__(self, type=None, flags=None):
+		self.type = type
+		self.flags = flags
 		
-    def unreliable_packet_base_key(self, key):
-        part1 = self.combine_keys(key, bytes.fromhex("18d8233437e4e3fe"))
-        part2 = self.combine_keys(key, bytes.fromhex("233e600123cdab80"))
-        return part1 + part2
+		self.version = None
+		self.source_type = None
+		self.source_port = None
+		self.dest_type = None
+		self.dest_port = None
+		self.session_id = 0
+		self.packet_id = 0
+		self.fragment_id = 0
+		self.substream_id = 0
+		self.connection_signature = None
+		self.initial_unreliable_id = 0
+		self.max_substream_id = 0
+		self.supported_functions = 0
+		self.minor_version = 0
+		self.signature = None
+		
+		self.payload = b""
+		
+	def __repr__(self):
+		flags = []
+		for flag in FLAG_LIST:
+			if self.flags & flag:
+				flags.append(FLAG_NAMES[flag])
+		flags = ",".join(flags)
+		
+		return "<PRUDPPacket type=%s flags=%s seq=%i frag=%i>" %(
+			TYPE_NAMES[self.type], flags, self.packet_id, self.fragment_id
+		)
 
-    def process_unreliable_crypto(self) -> bytes:
-        unique_key = bytearray(self.unreliable_packet_base_key)
-        unique_key[0] = (unique_key[0] + self.sequence_id) & 0xFF
-        unique_key[1] = (unique_key[1] + (self.sequence_id >> 8)) & 0xFF
-        unique_key[31] = (unique_key[31] + self.session_id) & 0xFF
+		
+class PRUDPMessageV0:
+	def __init__(self):
+		self.signature_version = 0
+		self.checksum_version = 1
+		self.flags_version = 1
+		
+		self.access_key = None.encode()
+	
+	def signature_size(self): return 4
+	
+	def calc_checksum(self, data):
+		checksum = sum(self.access_key)
+		if self.checksum_version == 0:
+			data = data.ljust((len(data) + 3) & ~3, b"\0")
+			words = struct.unpack("<%iI" %(len(data) // 4), data)
+			return ((checksum & 0xFF) + sum(words)) & 0xFFFFFFFF
 
-        cipher = ARC4.new(bytes(unique_key))
-        ciphered = cipher.encrypt(bytes(self.payload))
+		else:
+			words = struct.unpack_from("<%iI" %(len(data) // 4), data)
+			temp = sum(words) & 0xFFFFFFFF
+			
+			checksum += sum(data[len(data) & ~3:])
+			checksum += sum(struct.pack("<I", temp))
+			return checksum & 0xFF
+	
+	def calc_data_signature(self, packet, session_key):
+		data = packet.payload
+		if self.signature_version == 0:
+			header = struct.pack("<HB", packet.packet_id, packet.fragment_id)
+			data = session_key + header + data
 
-        return ciphered
+		if data:
+			key = hashlib.md5(self.access_key).digest()
+			digest = hmac.digest(key, data, hashlib.md5)
+			return digest[:4]
+		return struct.pack("<I", 0x12345678)
+		
+	def calc_packet_signature(self, packet, session_key, connection_signature):
+		if packet.type == PRUDPPacketTypes.DATA_PACKET:
+			return self.calc_data_signature(packet, session_key)
+		if packet.type == PRUDPPacketTypes.DISCONNECT_PACKET and self.signature_version == 0:
+			return self.calc_data_signature(packet, session_key)
+		if connection_signature:
+			return connection_signature
+		return bytes(4)
+	
+	def calc_connection_signature(self, addr):
+		data = socket.inet_aton(addr[0]) + struct.pack(">H", addr[1])
+		return hashlib.md5(data).digest()[3::-1]
+		
+	def encode(self, packet):
+		stream = streams.StreamOut("<")
+		stream.u8(packet.source_port | (packet.source_type << 4))
+		stream.u8(packet.dest_port | (packet.dest_type << 4))
+		if self.flags_version == 0:
+			stream.u8(packet.type | (packet.flags << 3))
+		else:
+			stream.u16(packet.type | (packet.flags << 4))
+		stream.u8(packet.session_id)
+		stream.write(packet.signature)
+		stream.u16(packet.packet_id)
+		self.encode_options(packet, stream)
+		stream.write(packet.payload)
+		
+		data = stream.get()
+		if self.checksum_version == 0:
+			data += struct.pack("<I", self.calc_checksum(data))
+		else:
+			data += struct.pack("<B", self.calc_checksum(data))
+		return data
+	
+	def encode_options(self, packet, stream):
+		if packet.type in [PRUDPPacketTypes.SYN_PACKET, PRUDPPacketTypes.CONNECT_PACKET]:
+			stream.write(packet.connection_signature)
+		if packet.type == PRUDPPacketTypes.DATA_PACKET:
+			stream.u8(packet.fragment_id)
+		if packet.flags & PRUDPPacketFlags.FLAG_HAS_SIZE:
+			stream.u16(len(packet.payload))
+	
+	def decode(self, data):
+		packets = []
+		
+		stream = streams.StreamIn(data, "<")
+		while not stream.eof():
+			start = stream.tell()
+		
+			source = stream.u8()
+			dest = stream.u8()
+			
+			packet = PRUDPPacket()
+			packet.version = 0
+			packet.source_type = source >> 4
+			packet.source_port = source & 0xF
+			packet.dest_type = dest >> 4
+			packet.dest_port = dest & 0xF
+			
+			if self.flags_version == 0:
+				type_flags = stream.u8()
+				packet.flags = type_flags >> 3
+				packet.type = type_flags & 7
+			else:
+				type_flags = stream.u16()
+				packet.flags = type_flags >> 4
+				packet.type = type_flags & 0xF
+				
+			packet.session_id = stream.u8()
+			packet.signature = stream.read(4)
+			packet.packet_id = stream.u16()
+			
+			if packet.type in [PRUDPPacketTypes.SYN_PACKET, PRUDPPacketTypes.CONNECT_PACKET]:
+				packet.connection_signature = stream.read(4)
+			if packet.type == PRUDPPacketTypes.DATA_PACKET:
+				packet.fragment_id = stream.u8()
+			
+			if packet.flags & PRUDPPacketFlags.FLAG_HAS_SIZE:
+				payload_size = stream.u16()
+			else:
+				if self.checksum_version == 0:
+					payload_size = stream.available() - 4
+				else:
+					payload_size = stream.available() - 1
+			packet.payload = stream.read(payload_size)
+			
+			end = stream.tell()
+			checksum_data = stream.get()[start : end]
+			expected_checksum = self.calc_checksum(checksum_data)
+			
+			if self.checksum_version == 0:
+				checksum = stream.u32()
+			else:
+				checksum = stream.u8()
+				
+			if checksum != expected_checksum:
+				raise ValueError("(V0) Invalid checksum (expected %i, got %i)" %(expected_checksum, checksum))
+			
+			packets.append(packet)
+		return packets
 
 
-class PRUDPConnection:
-    pass
+class PRUDPMessageV1:
+	def __init__(self):
+		self.access_key = None.encode()
+	
+	def signature_size(self): return 16
+	
+	def calc_packet_signature(self, packet, session_key, connection_signature):
+		options = self.encode_options(packet)
+		header = self.encode_header(packet, len(options))
+		
+		key = hashlib.md5(self.access_key).digest()
+		mac = hmac.new(key, digestmod=hashlib.md5)
+		mac.update(header[4:])
+		mac.update(session_key)
+		mac.update(struct.pack("<I", sum(self.access_key)))
+		mac.update(connection_signature)
+		mac.update(options)
+		mac.update(packet.payload)
+		return mac.digest()
+		
+	def calc_connection_signature(self, addr):
+		key = bytes.fromhex("26c31f381e46d6eb38e1af6ab70d11")
+		data = socket.inet_aton(addr[0]) + struct.pack(">H", addr[1])
+		return hmac.digest(key, data, hashlib.md5)
+	
+	def encode(self, packet):
+		options = self.encode_options(packet)
+		header = self.encode_header(packet, len(options))
+		return b"\xEA\xD0" + header + packet.signature + options + packet.payload
+	
+	def encode_header(self, packet, option_size):
+		stream = streams.StreamOut("<")
+		stream.u8(1)
+		stream.u8(option_size)
+		stream.u16(len(packet.payload))
+		stream.u8(packet.source_port | (packet.source_type << 4))
+		stream.u8(packet.dest_port | (packet.dest_type << 4))
+		stream.u16(packet.type | (packet.flags << 4))
+		stream.u8(packet.session_id)
+		stream.u8(packet.substream_id)
+		stream.u16(packet.packet_id)
+		return stream.get()
+	
+	def encode_options(self, packet):
+		options = {}
+		if packet.type in [PRUDPPacketTypes.SYN_PACKET, PRUDPPacketTypes.CONNECT_PACKET]:
+			options[OPTION_SUPPORT] = packet.minor_version | (packet.supported_functions << 8)
+			options[OPTION_CONNECTION_SIG] = packet.connection_signature
+			if packet.type == PRUDPPacketTypes.CONNECT_PACKET:
+				options[OPTION_UNRELIABLE_SEQ_ID] = packet.initial_unreliable_id
+			options[OPTION_MAX_SUBSTREAM_ID] = packet.max_substream_id
+		elif packet.type == PRUDPPacketTypes.DATA_PACKET:
+			options[OPTION_FRAGMENT_ID] = packet.fragment_id
+		return encode_options(options)
+		
+	def verify_options(self, packet, options):
+		keys = set(options)
+		if packet.type == PRUDPPacketTypes.SYN_PACKET:
+			return keys == {OPTION_SUPPORT, OPTION_CONNECTION_SIG, OPTION_MAX_SUBSTREAM_ID}
+		if packet.type == PRUDPPacketTypes.CONNECT_PACKET:
+			return keys == {OPTION_SUPPORT, OPTION_CONNECTION_SIG, OPTION_UNRELIABLE_SEQ_ID, OPTION_MAX_SUBSTREAM_ID}
+		if packet.type == PRUDPPacketTypes.DATA_PACKET:
+			return keys == {OPTION_FRAGMENT_ID}
+		return keys == set()
+		
+	def decode(self, data):
+		packets = []
+		
+		stream = streams.StreamIn(data, "<")
+		while not stream.eof():
+			if stream.read(2) != b"\xEA\xD0":
+				raise ValueError("(V1) Invalid magic number")
+				
+			header = stream.peek(12)
+			
+			if stream.u8() != 1:
+				raise ValueError("(V1) Version check failed")
+			
+			option_size = stream.u8()
+			payload_size = stream.u16()
+			source = stream.u8()
+			dest = stream.u8()
+			type_flags = stream.u16()
+			
+			packet = PRUDPPacket()
+			packet.version = 1
+			packet.source_type = source >> 4
+			packet.source_port = source & 0xF
+			packet.dest_type = dest >> 4
+			packet.dest_port = dest & 0xF
+			packet.flags = type_flags >> 4
+			packet.type = type_flags & 0xF
+			packet.session_id = stream.u8()
+			packet.substream_id = stream.u8()
+			packet.packet_id = stream.u16()
+			
+			packet.signature = stream.read(16)
+			
+			option_data = stream.read(option_size)
+			options = decode_options(option_data)
+			
+			if not self.verify_options(packet, options):
+				raise ValueError("(V1) Received unexpected set of options")
+			
+			if packet.type in [PRUDPPacketTypes.SYN_PACKET, PRUDPPacketTypes.CONNECT_PACKET]:
+				packet.minor_version = options[OPTION_SUPPORT] & 0xFF
+				packet.supported_functions = options[OPTION_SUPPORT] >> 8
+				packet.connection_signature = options[OPTION_CONNECTION_SIG]
+				packet.max_substream_id = options[OPTION_MAX_SUBSTREAM_ID]
+			if packet.type == PRUDPPacketTypes.CONNECT_PACKET:
+				packet.initial_unreliable_id = options[OPTION_UNRELIABLE_SEQ_ID]
+			if packet.type == PRUDPPacketTypes.DATA_PACKET:
+				packet.fragment_id = options[OPTION_FRAGMENT_ID]
+			
+			packet.payload = stream.read(payload_size)
+			
+			packets.append(packet)
+		return packets
+		
+
+class PRUDPLiteMessage:
+	def __init__(self):
+		self.access_key = None.encode()
+		
+		self.buffer = b""
+		
+	def signature_size(self): return 16
+
+	def calc_packet_signature(self, packet, session_key, connection_signature):
+		if packet.type == PRUDPPacketTypes.CONNECT_PACKET and packet.flags & PRUDPPacketFlags.FLAG_NEED_ACK:
+			key = hashlib.md5(self.access_key).digest()
+			return hmac.digest(key, key + connection_signature, hashlib.md5)
+		return None
+	
+	def calc_connection_signature(self, addr):
+		key = bytes.fromhex("26c31f381e46d6eb38e1af6ab70d11")
+		data = socket.inet_aton(addr[0]) + struct.pack(">H", addr[1])
+		return hmac.digest(key, data, hashlib.md5)
+	
+	def encode(self, packet):
+		options = self.encode_options(packet)
+		header = self.encode_header(packet, len(options))
+		return header + options + packet.payload
+	
+	def encode_header(self, packet, option_size):
+		stream = streams.StreamOut("<")
+		stream.u8(0x80)
+		stream.u8(option_size)
+		stream.u16(len(packet.payload))
+		stream.u8((packet.source_type << 4) | packet.dest_type)
+		stream.u8(packet.source_port)
+		stream.u8(packet.dest_port)
+		stream.u8(packet.fragment_id)
+		stream.u16(packet.type | (packet.flags << 4))
+		stream.u16(packet.packet_id)
+		return stream.get()
+	
+	def encode_options(self, packet):
+		options = {}
+		if packet.type in [PRUDPPacketTypes.SYN_PACKET, PRUDPPacketTypes.CONNECT_PACKET]:
+			options[OPTION_SUPPORT] = packet.minor_version | (packet.supported_functions << 8)
+		if packet.type == PRUDPPacketTypes.SYN_PACKET and packet.flags & PRUDPPacketFlags.FLAG_ACK:
+			options[OPTION_CONNECTION_SIG] = packet.connection_signature
+		if packet.type == PRUDPPacketTypes.CONNECT_PACKET and not packet.flags & PRUDPPacketFlags.FLAG_ACK:
+			options[OPTION_CONNECTION_SIG_LITE] = packet.signature
+		return encode_options(options)
+	
+	def verify_options(self, packet, options):
+		keys = set(options)
+		if packet.type in [PRUDPPacketTypes.SYN_PACKET, PRUDPPacketTypes.CONNECT_PACKET]:
+			if packet.type == PRUDPPacketTypes.SYN_PACKET and packet.flags & PRUDPPacketFlags.FLAG_ACK:
+				return keys == {OPTION_SUPPORT, OPTION_CONNECTION_SIG}
+			if packet.type == PRUDPPacketTypes.CONNECT_PACKET and not packet.flags & PRUDPPacketFlags.FLAG_ACK:
+				return keys == {OPTION_SUPPORT, OPTION_CONNECTION_SIG_LITE}
+			return keys == {OPTION_SUPPORT}
+		return keys == set()
+	
+	def decode(self, data):
+		self.buffer += data
+		
+		packets = []
+		while self.buffer:
+			if len(self.buffer) < 12: return packets
+			
+			stream = streams.StreamIn(self.buffer, "<")
+			if stream.u8() != 0x80:
+				raise ValueError("(Lite) Invalid magic number")
+			
+			option_size = stream.u8()
+			payload_size = stream.u16()
+			if len(self.buffer) < 12 + option_size + payload_size:
+				return packets
+			
+			self.buffer = self.buffer[12 + option_size + payload_size:]
+			
+			packet = PRUDPPacket()
+			
+			stream_types = stream.u8()
+			packet.source_type = stream_types >> 4
+			packet.dest_type = stream_types & 0xF
+			
+			packet.source_port = stream.u8()
+			packet.dest_port = stream.u8()
+			packet.fragment_id = stream.u8()
+			
+			type_flags = stream.u16()
+			packet.flags = type_flags >> 4
+			packet.type = type_flags & 0xF
+			
+			packet.packet_id = stream.u16()
+			packet.session_id = 0
+			
+			option_data = stream.read(option_size)
+			options = decode_options(option_data)
+			
+			if not self.verify_options(packet, options):
+				raise ValueError("(Lite) Received unexpected set of options")
+			
+			packet.connection_signature = b""
+			if packet.type in [PRUDPPacketTypes.SYN_PACKET, PRUDPPacketTypes.CONNECT_PACKET]:
+				packet.minor_version = options[OPTION_SUPPORT] & 0xFF
+				packet.supported_functions = options[OPTION_SUPPORT] >> 8
+			if packet.type == PRUDPPacketTypes.SYN_PACKET and packet.flags & PRUDPPacketFlags.FLAG_ACK:
+				packet.connection_signature = options[OPTION_CONNECTION_SIG]
+			if packet.type == PRUDPPacketTypes.CONNECT_PACKET and not packet.flags & PRUDPPacketFlags.FLAG_ACK:
+				packet.signature = options[OPTION_CONNECTION_SIG_LITE]
+			
+			packet.payload = stream.read(payload_size)
+			packets.append(packet)
+		return packets
+		
+		
+class PRUDPMessageSelector:
+	def __init__(self):
+		self.v0 = PRUDPMessageV0()
+		self.v1 = PRUDPMessageV1()
+		self.lite = PRUDPLiteMessage()
+		
+	def select(self, version):
+		if 0 == self.settings.TRANSPORT_UDP:
+			if version == 0:
+				return self.v0
+			return self.v1
+		return self.lite
+	
+	def analyze(self, data):
+		if 0 == self.settings.TRANSPORT_UDP:
+			if 2:
+				if data[:3] == b"\xEA\xD0\x01":
+					return self.v1
+				return self.v0
+		return self.select(2)
+	
+	def signature_size(self, version=None):
+		return self.select(version).signature_size()
+	def calc_packet_signature(self, packet, session_key, connection_signature):
+		return self.select(packet.version).calc_packet_signature(packet, session_key, connection_signature)
+	def calc_connection_signature(self, addr, version=None):
+		return self.select(version).calc_connection_signature(addr)
+	def encode(self, packet):
+		return self.select(packet.version).encode(packet)
+	def decode(self, data):
+		return self.analyze(data).decode(data)
+	
+	
+class RC4Encryption:
+	def __init__(self, key):
+		self.rc4enc = ARC4.new(key)
+		self.rc4dec = ARC4.new(key)
+	
+	def set_key(self, key):
+		self.rc4enc = ARC4.new(key)
+		self.rc4dec = ARC4.new(key)
+		
+	def encrypt(self, data): return self.rc4enc.encrypt(data)
+	def decrypt(self, data): return self.rc4dec.decrypt(data)
+	
+	
+class DummyEncryption:
+	def set_key(self, key): pass
+	def encrypt(self, data): return data
+	def decrypt(self, data): return data
+	
+	
+class ZlibCompression:
+	def compress(self, data):
+		compressed = zlib.compress(data)
+		ratio = int(len(data) / len(compressed) + 1)
+		return bytes([ratio]) + compressed
+		
+	def decompress(self, data):
+		if data[0] == 0:
+			return data[1:]
+		
+		decompressed = zlib.decompress(data[1:])
+		ratio = int(len(decompressed) / (len(data) - 1) + 1)
+		if ratio != data[0]:
+			raise ValueError("Unexpected compression ratio (expected %i, got %i)" %ratio, data[0])
+		return decompressed
+		
+		
+class DummyCompression:
+	def compress(self, data): return data
+	def decompress(self, data): return data
 
 
-class PRUDPEndPoint:
-    def __init__(self, server: 'PRUDPServer', stream_id, default_stream_settings: StreamSettings, is_secure_endpoint=False):
-        self.server = server
-        self.stream_id = stream_id
-        self.default_stream_settings = default_stream_settings
-        self.connections = threading.Lock()
-        self.packet_handlers = {}
-        self.packet_event_handlers = {}
-        self.connection_ended_event_handlers = []
-        self.error_event_handlers = []
-        self.connection_id_counter = Counter()
-        self.server_account = Account()
-        self.account_details_by_pid = None # TODO
-        self.account_details_by_username = None # TODO
-        self.is_secure_endpoint = is_secure_endpoint
-        self.calc_retransmission_timeout_callback = None # TODO
+class PayloadEncoder:
 
-    def on(self, name, handler):
-        if name not in self.packet_event_handlers:
-            self.packet_event_handlers[name] = []
+	DEFAULT_KEY = b"CD&ML"
 
-        self.packet_event_handlers[name].append(handler)
-
-    def on_data(self, handler):
-        self.on("data", handler)
-
-    def on_error(self, handler):
-        self.error_event_handlers.append(handler)
-
-    def on_disconnect(self, handler):
-        self.on("disconnect", handler)
-    
-    def access_key(self) -> str:
-        return self.server.access_key
-    
-    def set_access_key(self, access_key: str):
-        self.server.access_key = access_key
-
-    def send(self, packet: PacketInterface):
-        self.server.send(packet)
-
-    def library_versions(self) -> LibraryVersions:
-        return self.server.library_versions
-
-    def byte_stream_settings(self) -> ByteStreamSettings:
-        return self.server.byte_stream_settings 
-
-
-class SocketConnection:
-    # https://github.com/aratz-lasa/websockets/blob/17b3f47549b6f752a1be07fa1ba3037cb59c7d56/src/websockets/client.py#L42
-    def __init__(self, server: 'PRUDPServer', address: str, websocket_connection: Optional[ClientProtocol] = None):
-        self.server = server
-        self.address = address
-        self.websocket_connection = websocket_connection
-        self.connections = MutexMap()
-
-    def __repr__(self):
-        return f"SocketConnection(address={self.address}, connections={len(self.connections._map)})"
-
-    @classmethod
-    def new_socket_connection(server: 'PRUDPServer', address: str, websocket_connection: Optional[ClientProtocol] = None) -> 'SocketConnection':
-        return SocketConnection(server, address, websocket_connection)
-
-
-class UDPConnection:
-    def __init__(self, host, port):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.address = (host, port)
-        self.socket.bind(self.address)
-
-    def send(self, data):
-        if isinstance(data, str):
-            data = data.encode()
-        self.socket.sendto(data, self.address)
-
-    def receive(self):
-        data, addr = self.socket.recvfrom(1024)
-        return data.decode()
-
-    def close(self):
-        self.socket.close()
-
-    def resolve_udp_addr(self, host: str, port: int) -> tuple:
-        ip_addr = socket.gethostbyname(host)
-        udp_addr = (ip_addr, port)
-        return udp_addr
-
-    def listen_udp(host, port, buffer_size=1024):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        
-        sock.bind((host, port))
-        print(f"Listening on {host}:{port}")
-        
-        while True:
-            data, addr = sock.recvfrom(buffer_size)
-            print(f"message sended of {addr}: {data.decode()}")
-            
-            sock.sendto(f"Response of {host}:{port}".encode(), addr)
+	def __init__(self):
+		substreams = 0 + 1
+		
+		self.reliable_encryption = [self.create_encryption(s) for i in range(substreams)]
+		self.unreliable_encryption = self.create_encryption()
+		
+		self.unreliable_key = bytes(0x20)
+		
+		if 0:
+			self.compression = DummyCompression()
+		else:
+			self.compression = ZlibCompression()
+			
+	def create_encryption(self):
+		if 0 == PRUDPTransportTypes.TRANSPORT_UDP:
+			return RC4Encryption(self.DEFAULT_KEY)
+		return DummyEncryption()
+		
+	def encode(self, packet):
+		data = packet.payload
+		if packet.type == PRUDPPacketTypes.DATA_PACKET and data:
+			data = self.compression.compress(data)
+			if packet.flags & PRUDPPacketFlags.FLAG_RELIABLE:
+				data = self.reliable_encryption[packet.substream_id].encrypt(data)
+			else:
+				key = self.make_unreliable_key(packet)
+				self.unreliable_encryption.set_key(key)
+				
+				data = self.unreliable_encryption.encrypt(data)
+		return data
+	
+	def decode(self, packet):
+		data = packet.payload
+		if packet.type == PRUDPPacketTypes.DATA_PACKET and data:
+			if packet.flags & PRUDPPacketFlags.FLAG_RELIABLE:
+				data = self.reliable_encryption[packet.substream_id].decrypt(data)
+			else:
+				key = self.make_unreliable_key(packet)
+				self.unreliable_encryption.set_key(key)
+				
+				data = self.unreliable_encryption.decrypt(data)
+			data = self.compression.decompress(data)
+		return data
+	
+	def make_unreliable_key(self, packet):
+		key = list(self.unreliable_key)
+		key[0] = (key[0] + packet.packet_id) & 0xFF
+		key[1] = (key[1] + (packet.packet_id >> 8)) & 0xFF
+		key[31] = (key[31] + packet.session_id) & 0xFF
+		return bytes(key)
+		
+	def modify_key(self, key):
+		chars = list(key)
+		
+		add = len(chars) // 2 + 1
+		for i in range(len(chars) // 2):
+			chars[i] = (chars[i] + add - i) & 0xFF
+		
+		return bytes(chars)
+		
+	def combine_keys(self, key1, key2):
+		return hashlib.md5(key1 + key2).digest()
+		
+	def init_unreliable_key(self, key):
+		part1 = self.combine_keys(key, bytes.fromhex("18d8233437e4e3fe"))
+		part2 = self.combine_keys(key, bytes.fromhex("233e600123cdab80"))
+		return part1 + part2
+	
+	def set_session_key(self, key):
+		self.reliable_encryption[0].set_key(key)
+		
+		temp_key = key
+		for encryption in self.reliable_encryption[1:]:
+			temp_key = self.modify_key(temp_key)
+			encryption.set_key(temp_key)
+		
+		self.unreliable_key = self.init_unreliable_key(key)
 
 
-class PRUDPServer:
-    def __init__(self):
-        self.udp_socket = None
-        self.endpoints = MutexMap[PRUDPEndPoint]
-        self.access_key = ""
-        self.kerberos_ticket_version = int
-        self.session_key_lengh = 32
-        self.fragment_size = 1300
-        self.library_versions = LibraryVersions()
-        self.byte_stream_settings = ByteStreamSettings()
-        self.prudpv0settings = PRUDPV0Settings()
-        self.prudpv1settings = PRUDPV1Settings()
-        self.use_verbos_rmc = bool
+class PRUDPClient:
+	def __init__(self, transport, version):
+		self.fragment_size = 1300
+		self.resend_timeout = 1
+		self.resend_limit = 2
+		self.ping_timeout = 5
+		self.max_substream_id = 0
+		self.supported_functions = 0
+		self.minor_ver = 4
+		
+		self.transport = transport
+		self.version = version
+		
+		self.packet_encoder = PRUDPMessageSelector().select(version)
+		self.payload_encoder = PayloadEncoder()
+		self.sequence_mgr = SequenceMgr()
+		
+		substreams = self.max_substream_id + 1
+		self.sliding_windows = [SlidingWindow() for i in range(substreams)]
+		self.fragment_buffers = [b""] * substreams
+		
+		self.packets = [queue.create() for i in range(substreams)]
+		self.unreliable_packets = queue.create()
+		
+		self.group = None
+		self.scheduler = None
+		self.ping_event = None
+		self.ack_events = {}
+		
+		self.connection_check = random.randint(0, 0xFFFFFFFF)
+		
+		self.local_session_id = random.randint(0, 0xFF)
+		self.remote_session_id = None
+		self.remote_signature = None
+		
+		self.local_addr = None
+		self.local_port = None
+		self.local_type = None
+		
+		self.remote_addr = None
+		self.remote_port = None
+		self.remote_type = None
+		
+		self.user_pid = None
+		self.user_cid = None
+		self.session_key = b""
+		
+		self.credentials = None
+		
+		self.handshake_event = anyio.Event()
+		self.close_event = anyio.Event()
+		
+		self.state = PRUDPConnectionState.STATE_CONNECTING
+	
+	async def __aenter__(self): return self
+	async def __aexit__(self, typ, val, tb):
+		await self.cleanup()
+		
+	def bind(self, addr, port, type):
+		self.local_addr = addr
+		self.local_port = port
+		self.local_type = type
+	
+	def connect(self, addr, port, type):
+		self.remote_addr = addr
+		self.remote_port = port
+		self.remote_type = type
+	
+	def login(self, pid, cid, session_key):
+		self.user_pid = pid
+		self.user_cid = cid
+		self.session_key = session_key
+		
+		self.payload_encoder.set_session_key(session_key)
+	
+	def configure(self, max_substream_id, supported_functions, minor_version):
+		self.max_substream_id = max_substream_id
+		self.supported_functions = supported_functions
+		self.minor_ver = minor_version
+	
+	def remote(self, connection_signature, session_id):
+		self.remote_signature = connection_signature
+		self.remote_session_id = session_id
+		
+	async def handshake(self, credentials, group):
+		self.group = group
+		
+		self.scheduler = scheduler.Scheduler(group)
+		self.scheduler.start()
+		
+		self.credentials = credentials
+		if self.credentials:
+			self.login(credentials.pid, credentials.cid, credentials.ticket.session_key)
+		
+		await self.send_syn()
+		await self.handshake_event.wait()
+		
+		if self.state != PRUDPConnectionState.STATE_CONNECTED:
+			raise RuntimeError("PRUDP connection failed")
+		
+		self.ping_event = self.scheduler.repeat(self.send_ping, self.ping_timeout)
+	
+	async def serve(self, group):
+		self.group = group
+		
+		self.state = PRUDPConnectionState.STATE_CONNECTED
+		
+		self.sliding_windows[0].skip()
+		
+		self.scheduler = scheduler.Scheduler(group)
+		self.scheduler.start()
+		
+		self.ping_event = self.scheduler.repeat(self.send_ping, self.ping_timeout)
+	
+	async def send(self, data, substream=0):
+		if self.state != PRUDPConnectionState.STATE_CONNECTED:
+			raise anyio.ClosedResourceError("PRUDP connection is closed")
+		
+		if not 0 <= substream <= self.max_substream_id:
+			raise ValueError("Substream id is invalid")
+		
+		fragment_id = 1
+		while data:
+			if len(data) <= self.fragment_size:
+				fragment_id = 0
+			await self.send_fragment(data[:self.fragment_size], fragment_id, substream)
+			data = data[self.fragment_size:]
+			fragment_id += 1
+	
+	async def send_fragment(self, data, fragment_id, substream):
+		packet = PRUDPPacket(PRUDPPacketTypes.DATA_PACKET, PRUDPPacketFlags.FLAG_RELIABLE | PRUDPPacketFlags.FLAG_NEED_ACK | PRUDPPacketFlags.FLAG_HAS_SIZE)
+		packet.fragment_id = fragment_id
+		packet.substream_id = substream
+		packet.payload = data
+		await self.send_packet(packet)
+	
+	async def send_unreliable(self, data):
+		if self.state != PRUDPConnectionState.STATE_CONNECTED:
+			raise anyio.ClosedResourceError("PRUDP connection is closed")
+		
+		packet = PRUDPPacket(PRUDPPacketTypes.DATA_PACKET, PRUDPPacketFlags.FLAG_NEED_ACK | PRUDPPacketFlags.FLAG_HAS_SIZE)
+		packet.payload = data
+		await self.send_packet(packet)
+	
+	async def send_ping(self):
+		packet = PRUDPPacket(PRUDPPacketTypes.PING_PACKET, PRUDPPacketFlags.FLAG_RELIABLE | PRUDPPacketFlags.FLAG_NEED_ACK)
+		await self.send_packet(packet)
+	
+	async def send_syn(self):
+		packet = PRUDPPacket(PRUDPPacketTypes.SYN_PACKET, PRUDPPacketFlags.FLAG_NEED_ACK)
+		packet.connection_signature = bytes(self.packet_encoder.signature_size())
+		packet.max_substream_id = self.max_substream_id
+		packet.supported_functions = self.supported_functions
+		packet.minor_version = self.minor_ver
+		await self.send_packet(packet)
+	
+	async def send_connect(self):
+		connection_signature = self.packet_encoder.calc_connection_signature(self.remote_addr)
+		packet = PRUDPPacket(PRUDPPacketTypes.CONNECT_PACKET, PRUDPPacketFlags.FLAG_RELIABLE | PRUDPPacketFlags.FLAG_NEED_ACK | PRUDPPacketFlags.FLAG_HAS_SIZE)
+		packet.connection_signature = connection_signature
+		packet.initial_unreliable_id = self.sequence_mgr.initial_unreliable_id
+		packet.max_substream_id = self.max_substream_id
+		packet.minor_version = self.minor_ver
+		packet.supported_functions = self.supported_functions
+		packet.payload = self.build_connection_request()
+		await self.send_packet(packet)
+	
+	async def send_ack(self, packet):
+		ack = PRUDPPacket(packet.type, PRUDPPacketFlags.FLAG_ACK)
+		ack.packet_id = packet.packet_id
+		ack.fragment_id = packet.fragment_id
+		ack.substream_id = packet.substream_id
+		
+		await self.send_packet(ack)
+		if packet.type == PRUDPPacketTypes.DISCONNECT_PACKET:
+			await self.send_packet(ack)
+			await self.send_packet(ack)
+	
+	async def send_packet(self, packet):
+		packet.version = self.version
+		packet.source_port = self.local_port
+		packet.source_type = self.local_type
+		packet.dest_port = self.remote_port
+		packet.dest_type = self.remote_type
+		if not packet.flags & (PRUDPPacketFlags.FLAG_ACK | PRUDPPacketFlags.FLAG_MULTI_ACK):
+			packet.packet_id = self.sequence_mgr.assign(packet)
+		if packet.type != PRUDPPacketTypes.SYN_PACKET:
+			packet.session_id = self.local_session_id
+		
+		if packet.type == PRUDPPacketTypes.DATA_PACKET and not packet.flags & (PRUDPPacketFlags.FLAG_ACK | PRUDPPacketFlags.FLAG_MULTI_ACK):
+			packet.payload = self.payload_encoder.encode(packet)
+		
+		if packet.type == PRUDPPacketTypes.SYN_PACKET:
+			packet.signature = self.packet_encoder.calc_packet_signature(packet, b"", b"")
+		elif packet.type == PRUDPPacketTypes.CONNECT_PACKET:
+			packet.signature = self.packet_encoder.calc_packet_signature(packet, b"", self.remote_signature)
+		else:
+			packet.signature = self.packet_encoder.calc_packet_signature(packet, self.session_key, self.remote_signature)
+		
+		try:
+			await self.transport.send(packet, self.remote_addr)
+		except util.StreamError:
+			await self.cleanup()
+			return
+		
+		if (packet.flags & PRUDPPacketFlags.FLAG_RELIABLE or packet.type == PRUDPPacketTypes.SYN_PACKET) and packet.flags & PRUDPPacketFlags.FLAG_NEED_ACK:
+			self.schedule_timeout(packet)
+			
+	async def resend_packet(self, packet, counter):
+		key = (packet.type, packet.substream_id, packet.packet_id)
+		if counter < self.resend_limit:
+			logger.info("[%i] Resending packet: %s", self.local_session_id, packet)
+			
+			try:
+				await self.transport.send(packet, self.remote_addr)
+			except util.StreamError:
+				await self.cleanup()
+				return
+			
+			handle = self.scheduler.schedule(self.resend_packet, self.resend_timeout, packet, counter + 1)
+			self.ack_events[key] = handle
+		else:
+			logger.error("Packet timed out: %s" %packet)
+			await self.cleanup()
+	
+	def schedule_timeout(self, packet):
+		key = (packet.type, packet.substream_id, packet.packet_id)
+		handle = self.scheduler.schedule(self.resend_packet, self.resend_timeout, packet, 0)
+		self.ack_events[key] = handle
+		
+	def build_connection_request(self):
+		if self.credentials is None:
+			return b""
+		
+		stream = streams_nex.StreamOut()
+		stream.buffer(self.credentials.ticket.internal)
+		
+		substream = streams_nex.StreamOut()
+		substream.pid(self.credentials.pid)
+		substream.u32(self.credentials.cid)
+		substream.u32(self.connection_check)
+		
+		kerb = kerberos.KerberosEncryption(self.credentials.ticket.session_key)
+		stream.buffer(kerb.encrypt(substream.get()))
+		return stream.get()
+	
+	def check_connection_response(self, data):
+		if self.credentials is not None:
+			if len(data) != 8:
+				raise ValueError("Connection response has wrong size")
+			
+			length, check_value = struct.unpack("<II", data)
+			if length != 4:
+				raise ValueError("Invalid connection response size")
+			if check_value != (self.connection_check + 1) & 0xFFFFFFFF:
+				raise ValueError("Connection response check failed")
+		elif data:
+			raise ValueError("Expected empty connection response")
+		
+	async def handle(self, packet):
+		if self.state == PRUDPConnectionState.STATE_DISCONNECTED: return
+		
+		if self.state == PRUDPConnectionState.STATE_CONNECTING and packet.type != PRUDPPacketTypes.SYN_PACKET:
+			raise ValueError("Expected SYN packet")
+		
+		if packet.type == PRUDPPacketTypes.SYN_PACKET:
+			await self.process_syn(packet)
+		elif packet.type == PRUDPPacketTypes.CONNECT_PACKET:
+			await self.process_connect(packet)
+		else:
+			await self.process_other(packet)
+		
+		if packet.flags & PRUDPPacketFlags.FLAG_ACK:
+			key = (packet.type, packet.substream_id, packet.packet_id)
+			if key in self.ack_events:
+				handle = self.ack_events.pop(key)
+				self.scheduler.remove(handle)
+				
+				if packet.type == PRUDPPacketTypes.DISCONNECT_PACKET:
+					await self.cleanup()
+	
+	async def process_syn(self, packet):
+		if packet.signature != self.packet_encoder.calc_packet_signature(packet, b"", b""):
+			raise ValueError("Received SYN packet with invalid signature")
+		if not packet.flags & PRUDPPacketFlags.FLAG_ACK:
+			raise ValueError("Received unexpected SYN packet")
+		if packet.session_id != 0 or packet.packet_id != 0 or \
+		   packet.fragment_id != 0 or packet.substream_id != 0:
+			raise ValueError("Received invalid SYN/ACK packet")
+		if packet.max_substream_id > self.max_substream_id or \
+		   packet.minor_version > self.minor_ver or \
+		   packet.supported_functions & ~self.supported_functions:
+			raise ValueError("Received SYN/ACK packet with invalid negotiation parameters")
+		
+		key = (packet.type, packet.substream_id, packet.packet_id)
+		if key in self.ack_events:
+			self.state = PRUDPConnectionState.STATE_CONNECTED
+			
+			self.max_substream_id = packet.max_substream_id
+			self.minor_ver = packet.minor_version
+			self.supported_functions = packet.supported_functions
+			
+			self.remote_signature = packet.connection_signature
+			
+			await self.send_connect()
+	
+	async def process_connect(self, packet):
+		connection_signature = self.packet_encoder.calc_connection_signature(self.remote_addr)
+		if packet.signature != self.packet_encoder.calc_packet_signature(packet, b"", connection_signature):
+			raise ValueError("Received CONNECT packet with invalid signature")
+		if not packet.flags & PRUDPPacketFlags.FLAG_ACK:
+			raise ValueError("Received unexpected CONNECT packet")
+		if packet.packet_id != 1 or packet.fragment_id != 0 or \
+		   packet.substream_id != 0 or any(packet.connection_signature):
+			raise ValueError("Received invalid CONNECT/ACK packet")
+		if packet.max_substream_id != self.max_substream_id or \
+		   packet.minor_version != self.minor_ver or \
+		   packet.supported_functions != self.supported_functions:
+			raise ValueError("Received CONNECT/ACK packet with invalid negotiation parameters")
+		
+		key = (packet.type, packet.substream_id, packet.packet_id)
+		if key in self.ack_events:
+			self.check_connection_response(packet.payload)
+			self.remote_session_id = packet.session_id
+			self.handshake_event.set()
+	
+	async def process_other(self, packet):
+		connection_signature = self.packet_encoder.calc_connection_signature(self.remote_addr)
+		if packet.signature != self.packet_encoder.calc_packet_signature(packet, self.session_key, connection_signature):
+			raise ValueError("Received packet with invalid signature")
+		
+		if packet.flags & PRUDPPacketFlags.FLAG_MULTI_ACK:
+			self.handle_aggregate_ack(packet)
+		else:
+			if packet.substream_id > self.max_substream_id:
+				raise ValueError("Received packet with invalid substream id: %i", packet.substream_id)
+			if packet.session_id != self.remote_session_id:
+				raise ValueError("Received packet with invalid session id")
+			
+			if not packet.flags & PRUDPPacketFlags.FLAG_ACK:
+				if packet.flags & PRUDPPacketFlags.FLAG_NEED_ACK:
+					await self.send_ack(packet)
+				if packet.flags & PRUDPPacketFlags.FLAG_RELIABLE:
+					await self.process_reliable(packet)
+				else:
+					if packet.type == PRUDPPacketTypes.DATA_PACKET:
+						data = self.payload_encoder.decode(packet)
+						await self.unreliable_packets.put(data)
+					elif packet.type == PRUDPPacketTypes.DISCONNECT_PACKET:
+						logger.info("Connection closed by other end point (forcefully)")
+						await self.cleanup()
+	
+	async def process_reliable(self, packet):
+		substream = packet.substream_id
+		for packet in self.sliding_windows[substream].update(packet):
+			if packet.type == PRUDPPacketTypes.DATA_PACKET:
+				self.fragment_buffers[substream] += self.payload_encoder.decode(packet)
+				if packet.fragment_id == 0:
+					await self.packets[substream].put(self.fragment_buffers[substream])
+					self.fragment_buffers[substream] = b""
+			elif packet.type == PRUDPPacketTypes.DISCONNECT_PACKET:
+				logger.info("Connection closed by other end point")
+				await self.cleanup()
+	
+	def is_new_aggregate_ack(self, packet):
+		if 0 == PRUDPTransportTypes.TRANSPORT_UDP:
+			if self.version == 0:
+				return False
+			return packet.substream_id == 1
+		return True
+	
+	def verify_aggregate_ack(self, packet):
+		if packet.type != PRUDPPacketTypes.DATA_PACKET:
+			raise ValueError("Aggregate ack must be a DATA packet")
+		
+		if len(packet.payload) % 2:
+			raise ValueError("Aggregate ack payload size must be a multiple of 2")
+		if packet.substream_id not in [0, 1]:
+			raise ValueError("Aggregate ack packet has invalid stream id: %i" %packet.substream_id)
+		
+		if self.is_new_aggregate_ack(packet):
+			if len(packet.payload) != 4 + packet.payload[1] * 2:
+				raise ValueError("Aggregate ack payload has incorrect size")
+		elif len(packet.payload) < 4:
+			raise ValueError("Aggregate ack payload is too small")
+	
+	def handle_aggregate_ack(self, packet):
+		self.verify_aggregate_ack(packet)
+		if self.is_new_aggregate_ack(packet):
+			substream = packet.payload[0]
+			base_id = struct.unpack_from("<H", packet.payload, 2)[0]
+			extra_ids = struct.unpack_from("<%iH" %packet.payload[1], packet.payload, 4)
+		else:
+			substream = 0
+			base_id = packet.packet_id
+			extra_ids = struct.unpack("<%iH" %(len(packet.payload) // 2), packet.payload)
+		
+		for key in list(self.ack_events):
+			if key[0] == PRUDPPacketTypes.DATA_PACKET and key[1] == substream and key[2] <= base_id:
+				self.scheduler.remove(self.ack_events.pop(key))
+		
+		for packet_id in extra_ids:
+			key = (PRUDPPacketTypes.DATA_PACKET, substream, packet_id)
+			if key in self.ack_events:
+				self.scheduler.remove(self.ack_events.pop(key))
+				
+	async def cleanup(self):
+		self.state = PRUDPConnectionState.STATE_DISCONNECTED
+		self.scheduler.remove_all()
+		self.handshake_event.set()
+		self.close_event.set()
+		for queue in self.packets:
+			await queue.eof()
+		await self.unreliable_packets.eof()
+	
+	async def close(self):
+		if self.state == PRUDPConnectionState.STATE_DISCONNECTED: return
+		
+		logger.info("[%i] Closing PRUDP connection forcefully", self.local_session_id)
+		
+		packet = PRUDPPacket(PRUDPPacketTypes.DISCONNECT_PACKET, 0)
+		for i in range(3):
+			await self.send_packet(packet)
+		await self.cleanup()
+	
+	async def disconnect(self):
+		if self.state != PRUDPConnectionState.STATE_CONNECTED: return
+		
+		try:
+			logger.info("[%i] Closing PRUDP connection", self.local_session_id)
+			self.state = PRUDPConnectionState.STATE_DISCONNECTING
+			
+			packet = PRUDPPacket(PRUDPPacketTypes.DISCONNECT_PACKET, PRUDPPacketFlags.FLAG_RELIABLE | PRUDPPacketFlags.FLAG_NEED_ACK)
+			await self.send_packet(packet)
+			await self.close_event.wait()
 
-    def bind_prudp_endpoint(self, endpoint: PRUDPEndPoint):
-        if self.endpoints.has(endpoint.stream_id):
-          logger.warning("Tried to bind already existing PRUDPEndPoint %d", endpoint.stream_id)  
-        
-        endpoint.server = self
-        self.endpoints.set(endpoint.stream_id, endpoint)
+			logger.info("PRUDP connection is closed")
+		finally:
+			await self.cleanup()
+	
+	async def recv(self, substream=0):
+		return await self.packets[substream].get()
+	
+	async def recv_unreliable(self):
+		return await self.unreliable_packets.get()
+	
+	def pid(self):
+		return self.user_pid
+	def minor_version(self):
+		return self.minor_ver
+	
+	def local_address(self):
+		return self.local_addr
+	def remote_address(self):
+		return self.remote_addr
+		
+	def local_sid(self):
+		return self.local_port
+	def remote_sid(self):
+		return self.remote_port
 
-    async def send_raw(self, socket: SocketConnection, data):
-        err = None
 
-        if isinstance(socket.address, tuple):
-            if self.udp_socket:
-                try:
-                    self.udp_socket.sendto(data, socket.address)
-                except Exception as e:
-                    err = e
-        elif socket.websocket_connection:
-            try:
-                await socket.websocket_connection.send(data)
-            except Exception as e:
-                err = e
+class PRUDPPortTable:
+	def __init__(self):
+		self.num_ports = 32
+		if 0:
+			self.num_ports = 16
+		self.ports = {}
+	
+	def __iter__(self):
+		return iter(self.ports.values())
+	
+	def get(self, port, type):
+		port |= type << 8
+		if port not in self.ports:
+			raise ValueError("Port is not bound")
+		return self.ports[port]
+	
+	def allocate(self, type):
+		for i in reversed(range(self.num_ports)):
+			if i | (type << 8) not in self.ports:
+				return i
+		raise ValueError("All ports are in use")
+	
+	@contextlib.contextmanager
+	def bind(self, obj, port=None, type=10):
+		if port is None:
+			port = self.allocate(type)
+		
+		port |= type << 8
+		if port in self.ports:
+			raise ValueError("Port is in use: %i" %port)
+		
+		self.ports[port] = obj
+		try:
+			yield port & 0xFF
+		finally:
+			del self.ports[port]
 
-        if err:
-            logger.error(str(err))
 
-    def send_packet(self, packet: PRUDPPacketInterface):
-        packet_copy = packet.copy()
-        connection = packet_copy.sender()
+class PRUDPServerStream:
+	def __init__(self, transport, handler, key, group, disconnect_timeout):
+		self.transport = transport
+		self.handler = handler
+		self.key = key
+		self.group = group
+		self.disconnect_timeout = disconnect_timeout
+		
+		self.packet_encoder = PRUDPMessageSelector()
+		
+		self.supported_functions = 0
+		self.max_substream_id = 0
+		self.minor_ver = 4
+		
+		self.addr = None
+		self.port = None
+		self.type = None
+		
+		self.clients = {}
+	
+	def bind(self, addr, port, type):
+		self.addr = addr
+		self.port = port
+		self.type = type
+	
+	def get_client(self, packet, addr):
+		key = (addr, packet.source_port, packet.source_type)
+		return self.clients.get(key)
+	
+	async def start_client(self, client):
+		key = (client.remote_address(), client.remote_port, client.remote_type)
+		try:
+			await self.serve_client(client)
+		except Exception as e:
+			logger.warning("An exception occurred while serving a client: %s" %e)
+		finally:
+			del self.clients[key]
+	
+	async def serve_client(self, client):
+		async with util.create_task_group() as group:
+			async with client:
+				await client.serve(group)
+				await self.handler(client)
+				with anyio.move_on_after(self.disconnect_timeout):
+					await client.disconnect()
+	
+	async def handle(self, packet, addr):
+		if packet.type == PRUDPPacketTypes.SYN_PACKET and not packet.flags & PRUDPPacketFlags.FLAG_ACK:
+			await self.process_syn(packet, addr)
+		elif packet.type == PRUDPPacketTypes.CONNECT_PACKET and not packet.flags & PRUDPPacketFlags.FLAG_ACK:
+			await self.process_connect(packet, addr)
+		else:
+			await self.process_other(packet, addr)
+	
+	async def process_other(self, packet, addr):
+		client = self.get_client(packet, addr)
+		if client is not None:
+			await client.handle(packet)
+		else:
+			logger.warning("Received unexpected packet: %s", packet)
+			
+	async def process_syn(self, packet, addr):
+		if packet.signature != self.packet_encoder.calc_packet_signature(packet, b"", b""):
+			raise ValueError("Received packet with invalid signature")
+		if not packet.flags & PRUDPPacketFlags.FLAG_NEED_ACK:
+			raise ValueError("Received SYN packet without FLAG_NEED_ACK")
+		if packet.session_id != 0 or packet.packet_id != 0 or packet.fragment_id != 0 or \
+		   packet.substream_id != 0 or any(packet.connection_signature):
+			raise ValueError("Received invalid SYN packet: %s" %packet)
+		
+		ack = PRUDPPacket(PRUDPPacketTypes.SYN_PACKET, PRUDPPacketFlags.FLAG_ACK)
+		ack.version = packet.version
+		ack.source_type = self.type
+		ack.source_port = self.port
+		ack.dest_type = packet.source_type
+		ack.dest_port = packet.source_port
+		ack.connection_signature = self.packet_encoder.calc_connection_signature(addr, ack.version)
+		ack.max_substream_id = min(self.max_substream_id, packet.max_substream_id)
+		ack.minor_version = min(self.minor_ver, packet.minor_version)
+		ack.supported_functions = self.supported_functions & packet.supported_functions
+		ack.signature = self.packet_encoder.calc_packet_signature(ack, b"", b"")
+		await self.transport.send(ack, addr)
+	
+	async def process_connect(self, packet, addr):
+		connection_signature = self.packet_encoder.calc_connection_signature(addr, packet.version)
+		if packet.signature != self.packet_encoder.calc_packet_signature(packet, b"", connection_signature):
+			raise ValueError("Received packet with invalid signature")
+		
+		if not packet.flags & PRUDPPacketFlags.FLAG_NEED_ACK or packet.packet_id != 1 or \
+		   packet.fragment_id != 0 or packet.substream_id != 0:
+			raise ValueError("Received invalid CONNECT packet")
+		if packet.max_substream_id > self.max_substream_id or \
+		   packet.minor_version > self.minor_ver or \
+		   packet.supported_functions & ~self.supported_functions != 0:
+			raise ValueError("Received CONNECT packet with invalid negotiation parameters")
+		
+		key = (addr, packet.source_port, packet.source_type)
+		client = self.clients.get(key)
+		if client is None:
+			client = PRUDPClient(self.transport, packet.version)
+			client.bind(self.addr, self.port, self.type)
+			client.connect(addr, packet.source_port, packet.source_type)
+			client.configure(packet.max_substream_id, packet.supported_functions, packet.minor_version)
+			client.remote(packet.connection_signature, packet.session_id)
+		
+		response = self.process_login_request(packet.payload, client)
+		
+		if key not in self.clients:
+			self.clients[key] = client
+			self.group.start_soon(self.start_client, client)
+		
+		ack = PRUDPPacket(PRUDPPacketTypes.CONNECT_PACKET, PRUDPPacketFlags.FLAG_ACK | PRUDPPacketFlags.FLAG_HAS_SIZE)
+		ack.version = packet.version
+		ack.source_type = self.type
+		ack.source_port = self.port
+		ack.dest_type = packet.source_type
+		ack.dest_port = packet.source_port
+		ack.connection_signature = bytes(len(connection_signature))
+		ack.max_substream_id = packet.max_substream_id
+		ack.supported_functions = packet.supported_functions
+		ack.minor_version = packet.minor_version
+		ack.session_id = client.local_session_id
+		ack.packet_id = 1
+		ack.payload = response
+		ack.signature = self.packet_encoder.calc_packet_signature(ack, b"", packet.connection_signature)
+		await self.transport.send(ack, addr)
+	
+	def process_login_request(self, data, client):
+		if self.key is None:
+			return b""
+		
+		stream = streams_nex.StreamIn(data)
+		ticket_data = stream.buffer()
+		request_data = stream.buffer()
+		
+		ticket = kerberos.ServerTicket.decrypt(ticket_data, self.key)
+		if ticket.timestamp.timestamp() < time.time() - 120:
+			raise ValueError("Ticket has expired")
+		
+		kerb = kerberos.KerberosEncryption(ticket.session_key)
+		decrypted = kerb.decrypt(request_data)
+		
+		if len(decrypted) != 4 + 8:
+			raise ValueError("Invalid ticket size")
+		
+		stream = streams_nex.StreamIn(decrypted)
+		if stream.pid() != ticket.source:
+			raise ValueError("Invalid pid in kerberos ticket")
+		
+		client.login(ticket.source, stream.u32(), ticket.session_key)
+		
+		check_value = stream.u32()
+		return struct.pack("<II", 4, (check_value + 1) & 0xFFFFFFFF)
+		
+		
+class PRUDPClientTransport:
+	def __init__(self, socket, group):
+		self.socket = socket
+		self.group = group
+		
+		self.ports = PRUDPPortTable()
+		self.packet_encoder = PRUDPMessageSelector().select(2)
+	
+	@contextlib.asynccontextmanager
+	async def connect(self, port, type=10, credentials=None, *, disconnect_timeout=None):
+		client = PRUDPClient(self, 2)
+		with self.ports.bind(client, type=type) as local_port:
+			client.bind(self.socket.local_address(), local_port, type)
+			client.connect(self.socket.remote_address(), port, type)
+			
+			async with util.create_task_group() as group:
+				async with client:
+					await client.handshake(credentials, group)
+					yield client
+					with anyio.move_on_after(disconnect_timeout):
+						await client.disconnect()
+	
+	def start(self):
+		self.group.start_soon(self.process)
+	
+	async def process(self):
+		while True:
+			data = await self.socket.recv()
+			await self.process_data(data)
+			
+	async def process_data(self, data):
+		try:
+			packets = self.packet_encoder.decode(data)
+			for packet in packets:
+				await self.process_packet(packet)
+		except Exception as e:
+			logger.warning("[CLI] An exception occurred while processing a packet: %s" %e)
+	
+	async def process_packet(self, packet):
+		logger.info("[CLI] Received packet: %s" %packet)
+		await self.ports.get(packet.dest_port, packet.dest_type).handle(packet)
+			
+	async def send(self, packet, addr):
+		if addr != self.socket.remote_address():
+			raise ValueError("Destination address is invalid")
+		
+		logger.info("[CLI] Sending packet: %s" %packet)
+		
+		data = self.packet_encoder.encode(packet)
+		await self.socket.send(data)
+	
+	def local_address(self): return self.socket.local_address()
+	def remote_address(self): return self.socket.remote_address()
 
-        if not packet_copy.has_flag('PacketFlagAck') and not packet_copy.has_flag('PacketFlagMultiAck'):
-            if packet_copy.has_flag('PacketFlagReliable'):
-                sliding_window = connection.sliding_window(packet_copy.sub_stream_id())
-                packet_copy.set_sequence_id(sliding_window.next_outgoing_sequence_id())
-            elif packet_copy.type() == 'DataPacket':
-                packet_copy.set_sequence_id(connection.outgoing_unreliable_sequence_id_counter.next())
-            elif packet_copy.type() == 'PingPacket':
-                packet_copy.set_sequence_id(connection.outgoing_ping_sequence_id_counter.next())
-                connection.last_sent_ping_time = time.time()
-            else:
-                packet_copy.set_sequence_id(0)
 
-        packet_copy.set_session_id(connection.server_session_id)
+class PRUDPServerTransport:
+	def __init__(self):	
+		self.ports = PRUDPPortTable()
+		self.packet_encoder = PRUDPMessageSelector()
+	
+	@contextlib.asynccontextmanager
+	async def serve(self, handler, port, type=10, key=None, *, disconnect_timeout=None):
+		async with util.create_task_group() as group:
+			stream = PRUDPServerStream(self, handler, key, group, disconnect_timeout)
+			with self.ports.bind(stream, port, type) as port:
+				stream.bind(self.local_address(), port, type)
+				yield
+			
+	async def send(self, packet, addr):
+		logger.info("[SRV] Sending packet to %s: %s" %(addr, packet))
+		
+		data = self.packet_encoder.encode(packet)
+		await self.sendto(data, addr)
+		
+	async def process_data(self, data, addr):
+		try:
+			packets = self.packet_encoder.decode(data)
+			for packet in packets:
+				await self.process_packet(packet, addr)
+		except Exception as e:
+			logger.warning("[SRV] An exception occurred while processing a packet: %s" %e)
+	
+	async def process_packet(self, packet, addr):
+		logger.info("[SRV] Received packet from %s: %s" %(addr, packet))
+		await self.ports.get(packet.dest_port, packet.dest_type).handle(packet, addr)
 
-        if packet_copy.type() == 'DataPacket' and not packet_copy.has_flag('PacketFlagAck') and not packet_copy.has_flag('PacketFlagMultiAck'):
-            if packet_copy.has_flag('PacketFlagReliable'):
-                sliding_window = connection.sliding_window(packet_copy.sub_stream_id())
-                payload = packet_copy.payload()
 
-                try:
-                    compressed_payload = sliding_window.stream_settings.compression_algorithm.compress(payload)
-                    encrypted_payload = sliding_window.stream_settings.encryption_algorithm.encrypt(compressed_payload)
-                    packet_copy.set_payload(encrypted_payload)
-                except Exception as e:
-                    print(f"Error: {e}")
-            else:
-                if packet_copy.version() != 2:
-                    packet_copy.set_payload(packet_copy.process_unreliable_crypto())
+class PRUDPDatagramTransport(PRUDPServerTransport):
+	def __init__(self, socket, group):
+		super().__init__()
+		self.socket = socket
+		self.group = group
+		
+	def start(self):
+		self.group.start_soon(self.process)
+		
+	async def process(self):
+		while True:
+			data, addr = await self.socket.recv()
+			await self.process_data(data, addr)
+	
+	async def sendto(self, data, addr):
+		await self.socket.send(data, addr)
+	
+	def local_address(self):
+		return self.socket.local_address()
 
-        if self.prudpv1settings.legacy_connection_signature:
-            packet_copy.set_signature(packet_copy.calculate_signature(connection.session_key, connection.signature))
-        else:
-            packet_copy.set_signature(packet_copy.calculate_signature(connection.session_key, connection.server_connection_signature))
 
-        packet_copy.increment_send_count()
-        packet_copy.set_sent_at(time.time())
+class PRUDPSocketTransport(PRUDPServerTransport):
+	def __init__(self, addr):
+		super().__init__()
+		self.clients = {}
+		self.addr = addr
+	
+	async def handle(self, client):
+		address = client.remote_address()
+		self.clients[address] = client
+		try:
+			await self.process(client, address)
+		finally:
+			del self.clients[address]
+	
+	async def process(self, client, addr):
+		while True:
+			try:
+				data = await client.recv()
+			except util.StreamError:
+				logger.info("[SRV] underlying connection was closed")
+				return
+			
+			await self.process_data(data, addr)
+	
+	async def sendto(self, data, addr):
+		if addr not in self.clients:
+			raise anyio.BrokenResourceError("Transport connection is closed")
+		await self.clients[addr].send(data)
+	
+	def local_address(self):
+		return self.addr
 
-        if packet_copy.has_flag('PacketFlagReliable') and packet_copy.has_flag('PacketFlagNeedsAck'):
-            sliding_window = connection.sliding_window(packet_copy.substream_id())
-            sliding_window.timeout_manager.schedule_packet_timeout(packet_copy)
 
-        self.send_raw(connection.socket, packet_copy.bytes())
+def connect_transport_socket(host, port, context):
+	transport = 0
+	if transport:
+		return udp.connect(host, port)
+	elif transport:
+		return tls.connect(host, port, context)
+	return websocket.connect("%s:%i" %(host, port), context, protocols=["NEX"], disconnect_timeout=0)
 
-    def send(self, packet: PacketInterface):
-        if isinstance(packet, PRUDPPacketInterface):
-            data = packet.payload()
-            fragments = len(data) // self.fragment_size
+def serve_transport_socket(handler, host, port, context):
+	transport = 0
+	if transport:
+		return tls.serve(handler, host, port, context)
+	return websocket.serve(handler, host, port, context, protocol="NEX", disconnect_timeout=0)
 
-            fragment_id = 1
-            for i in range(fragments + 1):
-                if len(data) < self.fragment_size:
-                    packet.set_payload(data)
-                    packet.set_fragment_id(0)
-                else:
-                    packet.set_payload(data[:self.fragment_size])
-                    packet.set_fragment_id(fragment_id)
+@contextlib.asynccontextmanager
+async def connect_transport(host, port, context=None):
+	logger.info("Connecting PRUDP transport to %s:%i", host, port)
+	async with connect_transport_socket(host, port, context) as socket:
+		async with util.create_task_group() as group:
+			transport = PRUDPClientTransport(socket, group)
+			transport.start()
+			yield transport
 
-                    data = data[self.fragment_size:]
-                    fragment_id += 1
+@contextlib.asynccontextmanager
+async def serve_transport(host="", port=0, context=None):
+	logger.info("Serving PRUDP transport at %s:%i", host, port)
+	transport = 0
+	if transport:
+		async with udp.bind(host, port) as socket:
+			async with util.create_task_group() as group:
+				transport = PRUDPDatagramTransport(socket, group)
+				transport.start()
+				yield transport
+	else:
+		transport = PRUDPSocketTransport((host, port))
+		async with serve_transport_socket(transport.handle, host, port, context):
+			yield transport
 
-                self.send_packet(packet)
+@contextlib.asynccontextmanager
+async def connect(host, port, vport=1, type=10, context=None, credentials=None, *, disconnect_timeout=None):
+	async with connect_transport(host, port, context) as transport:
+		async with transport.connect(vport, type, credentials, disconnect_timeout=disconnect_timeout) as client:
+			yield client
 
-                if i < fragments:
-                    time.sleep(0.016)
-
-    def listen(self, port: int):
-        self.listen_udp(port)
-
-    def listen_datagram():
-        pass
-
-    def listen_udp(self, port: int):
-        udp_address = UDPConnection.resolve_udp_addr("udp", logger.info(":%d", port))
-        socket = UDPConnection.listen_udp("udp", udp_address)
-
-        self.udp_socket = socket
-
-        quit = threading.Event()
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-            futures = [executor.submit(self.listen_datagram) for _ in range(os.cpu_count())]
-
-            for future in futures:
-                future.result()
-
-        quit.set()
-
-    def set_fragment_size(self, fragment_size: int):
-        self.fragment_size = fragment_size
+@contextlib.asynccontextmanager
+async def serve(handler, host="", port=0, vport=1, type=10, context=None, key=None, *, disconnect_timeout=None):
+	async with serve_transport(host, port, context) as transport:
+		async with transport.serve(handler, vport, type, key, disconnect_timeout=disconnect_timeout):
+			yield

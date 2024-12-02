@@ -1,111 +1,146 @@
-import hmac
-import hashlib
-import os
-import struct
-import io
 from Crypto.Cipher import ARC4
+import struct
+import secrets
+import hashlib
+import hmac
 
-from nex.nex_types.pid import PID
-from nex.byte_stream import ByteStreamOut, ByteStreamIn
-from nex.nex_types.buffer import Buffer
-from nex.prudp import PRUDPServer
-from nex.nex_types._datetime import DateTime
+import streams
+
+
+class KeyDerivationOld:
+	def __init__(self, base_count = 65000, pid_count = 1024):
+		self.base_count = base_count
+		self.pid_count = pid_count
+		
+	def derive_key(self, password, pid):
+		key = password
+		for i in range(self.base_count + pid % self.pid_count):
+			key = hashlib.md5(key).digest()
+		return key
+		
+		
+class KeyDerivationNew:
+	def __init__(self, base_count = 1, pid_count = 1):
+		self.base_count = base_count
+		self.pid_count = pid_count
+		
+	def derive_key(self, password, pid):
+		key = password
+		for i in range(self.base_count):
+			key = hashlib.md5(key).digest()
+			
+		key += struct.pack("<Q", pid)
+		for i in range(self.pid_count):
+			key = hashlib.md5(key).digest()
+			
+		return key
 
 
 class KerberosEncryption:
-    def __init__(self, key):
-        self.key = key
-
-    def validate(self, buffer):
-        data = buffer[:-16]
-        checksum = buffer[-16:]
-        mac = hmac.new(self.key, data, hashlib.md5)
-        return hmac.compare_digest(checksum, mac.digest())
-
-    def decrypt(self, buffer):
-        if not self.validate(buffer):
-            raise ValueError("Invalid Kerberos checksum (incorrect password)")
-
-        cipher = ARC4.new(self.key)
-        decrypted = cipher.decrypt(buffer[:-16])
-        return decrypted
-
-    def encrypt(self, buffer):
-        cipher = ARC4.new(self.key)
-        encrypted = cipher.encrypt(buffer)
-        mac = hmac.new(self.key, encrypted, hashlib.md5)
-        return encrypted + mac.digest()
-
-def new_kerberos_encryption(key):
-    return KerberosEncryption(key)
+	def __init__(self, key):
+		self.key = key
+		
+	def check(self, buffer):
+		data = buffer[:-0x10]
+		checksum = buffer[-0x10:]
+		mac = hmac.new(self.key, data, digestmod=hashlib.md5)
+		return checksum == mac.digest()
+		
+	def decrypt(self, buffer):
+		if not self.check(buffer):
+			raise ValueError("Invalid Kerberos checksum (incorrect password)")
+		return ARC4.new(self.key).decrypt(buffer[:-0x10])
+		
+	def encrypt(self, buffer):
+		encrypted = ARC4.new(self.key).encrypt(buffer)
+		mac = hmac.new(self.key, encrypted, digestmod=hashlib.md5)
+		return encrypted + mac.digest()
 
 
-class KerberosTicket:
-    def __init__(self):
-        self.session_key = None
-        self.target_pid = PID
-        self.internal_data = Buffer
+class ClientTicket:
+	def __init__(self):
+		self.session_key = None
+		self.target = None
+		self.internal = b""
+	
+	@classmethod
+	def decrypt(cls, data, key):
+		kerberos = KerberosEncryption(key)
+		decrypted = kerberos.decrypt(data)
+		stream = streams.StreamIn(decrypted)
+		
+		ticket = cls()
+		ticket.session_key = stream.read(32)
+		ticket.target = stream.pid()
+		ticket.internal = stream.buffer()
+		return ticket
 
-    def encrypt(self, key, stream: 'ByteStreamOut'):
-        encryption = KerberosEncryption(key)
-        stream.write(self.session_key)
-        self.target_pid.write_to(stream)
-        self.internal_data.write_to(stream)
-        return encryption.encrypt(stream)
+	def encrypt(self, key):
+		stream = streams.StreamOut()
+		if 32 != len(self.session_key):
+			raise ValueError("Incorrect session_key size")
+		stream.write(self.session_key)
+		stream.pid(self.target)
+		stream.buffer(self.internal)
 
-def new_kerberos_ticket():
-    return KerberosTicket()
+		data = stream.get()
+		kerberos = KerberosEncryption(key)
+		return kerberos.encrypt(data)
+		
+		
+class ServerTicket:
+	def __init__(self):
+		self.timestamp = None
+		self.source = None
+		self.session_key = None
+	
+	@classmethod
+	def decrypt(cls, data, key):
+		if 1 == 1:
+			stream = streams.StreamIn(data)
+			ticket_key = stream.buffer()
+			data = stream.buffer()
+			key = hashlib.md5(key + ticket_key).digest()
+
+		kerberos = KerberosEncryption(key)
+		decrypted = kerberos.decrypt(data)
+		
+		stream = streams.StreamIn(decrypted)
+		
+		ticket = cls()
+		ticket.timestamp = stream.datetime()
+		ticket.source = stream.pid()
+		ticket.session_key = stream.read(32)
+		return ticket
+
+	def encrypt(self, key):
+		stream = streams.StreamOut()
+		stream.datetime(self.timestamp)
+		stream.pid(self.source)
+		if len(self.session_key) != 32:
+			raise ValueError("Incorrect session_key length")
+		stream.write(self.session_key)
+
+		data = stream.get()
+		if 1:
+			ticket_key = secrets.token_bytes(16)
+			final_key = hashlib.md5(key + ticket_key).digest()
+
+			kerberos = KerberosEncryption(final_key)
+			encrypted = kerberos.encrypt(data)
+			
+			stream = streams.StreamOut()
+			stream.buffer(ticket_key)
+			stream.buffer(encrypted)
+			return stream.get()
+		
+		kerberos = KerberosEncryption(key)
+		encrypted = kerberos.encrypt(data)
+		return encrypted
 
 
-class KerberosTicketInternalData:
-    def __init__(self, server: PRUDPServer):
-        self.server = server
-        self.issued = DateTime()
-        self.source_pid = PID()
-        self.session_key = bytearray()
-
-    def encrypt(self, key, stream: ByteStreamOut):
-        self.issued.write_to(stream)
-        self.source_pid.write_to(stream)
-        stream.write(self.session_key)
-        data = stream
-
-        if self.server.kerberos_ticket_version == 1:
-            ticket_key = os.urandom(16)
-            hash_key = hashlib.md5(key + ticket_key).digest()
-            encryption = KerberosEncryption(hash_key)
-            encrypted = encryption.encrypt(data)
-            return ticket_key + encrypted
-
-        encryption = KerberosEncryption(key)
-        return encryption.encrypt(data)
-
-    def decrypt(self, stream: ByteStreamIn, key):
-        if self.server.kerberos_ticket_version == 1:
-            ticket_key = Buffer(None)
-            data = Buffer(None)
-            hash_key = hashlib.md5(key + ticket_key).digest()
-            key = hash_key
-
-            stream = ByteStreamIn(data, stream.library_versions, stream.settings)
-
-        encryption = KerberosEncryption(key)
-        decrypted = encryption.decrypt(stream.read())
-        stream = ByteStreamIn(decrypted, stream.library_versions, stream.settings)
-
-        timestamp = DateTime(0)
-        user_pid = PID(0)
-
-        self.issued = timestamp
-        self.source_pid = user_pid
-        self.session_key = stream.read(self.server.session_key_lengh)
-
-def new_kerberos_ticket_internal_data(server):
-    return KerberosTicketInternalData(server)
-
-def derive_kerberos_key(pid: PID, password):
-    iteration_count = 65000 + pid % 1024
-    key = password
-    for _ in range(iteration_count):
-        key = hashlib.md5(key).digest()
-    return key
+class Credentials:
+	def __init__(self, ticket, pid, cid):
+		self.ticket = ticket
+		self.pid = pid
+		self.cid = cid
