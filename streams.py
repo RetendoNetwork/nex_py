@@ -1,14 +1,18 @@
+from common.date_time import DateTime
+from common.any_data_holder import AnyDataHolder
+from result_codes import ResultCodes
 from anynet import streams
-
-import common
+from common.structure import Structure
+from common.station_url import StationURL
 
 
 class StreamOut(streams.StreamOut):
-	def __init__(self):
+	def __init__(self, settings):
 		super().__init__("<")
+		self.settings = settings
 		
 	def pid(self, value):
-		if 8:
+		if self.settings["nex.pid_size"] == 8:
 			self.u64(value)
 		else:
 			self.u32(value)
@@ -52,7 +56,7 @@ class StreamOut(streams.StreamOut):
 		inst.encode(self)
 		
 	def anydata(self, inst):
-		holder = common.DataHolder()
+		holder = AnyDataHolder()
 		holder.data = inst
 		self.add(holder)
 		
@@ -74,7 +78,7 @@ class StreamOut(streams.StreamOut):
 		elif isinstance(value, str):
 			self.u8(4)
 			self.string(value)
-		elif isinstance(value, common.DateTime):
+		elif isinstance(value, DateTime):
 			self.u8(5)
 			self.datetime(value)
 		else:
@@ -82,16 +86,17 @@ class StreamOut(streams.StreamOut):
 		
 		
 class StreamIn(streams.StreamIn):
-	def __init__(self, data):
+	def __init__(self, data, settings):
 		super().__init__(data, "<")
+		self.settings = settings
 		
 	def pid(self):
-		if 8:
+		if self.settings["nex.pid_size"] == 8:
 			return self.u64()
 		return self.u32()
 		
 	def result(self):
-		return common.Result(self.u32())
+		return ResultCodes(self.u32())
 
 	def list(self, func):
 		return self.repeat(func, self.u32())
@@ -108,7 +113,7 @@ class StreamIn(streams.StreamIn):
 		return [self.callback(func) for i in range(count)]
 		
 	def callback(self, func):
-		if isinstance(func, type) and issubclass(func, common.Structure):
+		if isinstance(func, type) and issubclass(func, Structure):
 			return self.extract(func)
 		return func()
 		
@@ -118,16 +123,16 @@ class StreamIn(streams.StreamIn):
 			return self.read(length).decode("utf8")[:-1]
 			
 	def stationurl(self):
-		return common.StationURL.parse(self.string())
+		return StationURL.parse(self.string())
 		
 	def datetime(self):
-		return common.DateTime(self.u64())
+		return DateTime(self.u64())
 		
 	def buffer(self): return self.read(self.u32())
 	def qbuffer(self): return self.read(self.u16())
 		
 	def substream(self):
-		return StreamIn(self.buffer())
+		return StreamIn(self.buffer(), self.settings)
 	
 	def extract(self, cls):
 		inst = cls()
@@ -135,7 +140,7 @@ class StreamIn(streams.StreamIn):
 		return inst
 		
 	def anydata(self):
-		return self.extract(common.DataHolder).data
+		return self.extract(AnyDataHolder).data
 		
 	def variant(self):
 		type = self.u8()

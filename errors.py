@@ -1,3 +1,5 @@
+ERROR_MASK = 1 << 31
+
 error_names = {
 	0x00010001: "Core::Unknown",
 	0x00010002: "Core::NotImplemented",
@@ -24,6 +26,7 @@ error_names = {
 	
 	0x00030001: "RendezVous::ConnectionFailure",
 	0x00030002: "RendezVous::NotAuthenticated",
+
 	0x00030064: "RendezVous::InvalidUsername",
 	0x00030065: "RendezVous::InvalidPassword",
 	0x00030066: "RendezVous::UsernameAlreadyExists",
@@ -42,6 +45,7 @@ error_names = {
 	0x00030073: "RendezVous::SessionVoid",
 	0x00030075: "RendezVous::DDLMismatch",
 	0x00030076: "RendezVous::InvalidConfiguration",
+	
 	0x000300C8: "RendezVous::SessionFull",
 	0x000300C9: "RendezVous::InvalidGatheringPassword",
 	0x000300CA: "RendezVous::WithoutParticipationPeriod",

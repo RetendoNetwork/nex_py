@@ -1,14 +1,16 @@
 from anynet import http, tls
-import resources
+from common.cert_loader import CertificateLoader
+from streams import StreamIn
+from rmc import RMCMessage, RMCError
+from kerberos import KeyDerivationOld
 import hashlib
 import hmac
 import secrets
 
-import common, kerberos, rmc, streams
-
 
 class HPPClient:
-	def __init__(self, game_server_id, nex_version, pid, password):
+	def __init__(self, settings, game_server_id, nex_version, pid, password):
+		self.settings = settings
 		self.game_server_id = game_server_id
 		self.nex_version = nex_version
 		self.pid = pid
@@ -16,28 +18,28 @@ class HPPClient:
 		
 		self.environment = "L1"
 		
-		self.key_derivation = kerberos.KeyDerivationOld(65000, 1024)
+		self.key_derivation = KeyDerivationOld(65000, 1024)
 		
 		self.call_id = 1
 		
-		ca = resources.certificate("certs/CACERT_NINTENDO_CLASS2_CA_G3.der")
+		ca = CertificateLoader("nintendo").load_certificate("cert/CACERT_NINTENDO_CLASS2_CA_G3.der")
 		self.context = tls.TLSContext()
 		self.context.set_authority(ca)
 
 	def set_environment(self, env): self.environment = env
 	
 	def host(self):
-		return "hpp-%08x-%s.n.app.nintendo.net" %(self.game_server_id, self.environment.lower())
+		return "hpp-%08x-%s.n.app.retendo.online" %(self.game_server_id, self.environment.lower()) # Changed nintendo.net to retendo.online
 
 	async def request(self, protocol, method, body):
 		call_id = self.call_id
 		self.call_id = (call_id + 1) & 0xFFFFFFFF
 		
-		message = rmc.RMCMessage.request(protocol, method, call_id, body)
+		message = RMCMessage.request(self.settings, protocol, method, call_id, body)
 		
 		data = message.encode()
 		
-		key1 = bytes.fromhex(None).ljust(8, b"\0")
+		key1 = bytes.fromhex(self.settings["prudp.access_key"]).ljust(8, b"\0")
 		key2 = self.key_derivation.derive_key(self.password.encode(), self.pid)
 		
 		signature1 = hmac.new(key1, data, hashlib.md5).hexdigest()
@@ -61,7 +63,7 @@ class HPPClient:
 		if response.error():
 			raise ValueError("HPP request failed with status %i" %response.status_code)
 		
-		stream = streams.StreamIn(response.body)
+		stream = StreamIn(response.body, self.settings)
 		if stream.u32() != stream.available():
 			raise ValueError("HPP response has unexpected size")
 		
@@ -72,7 +74,7 @@ class HPPClient:
 				raise ValueError("HPP error response has unexpected call id")
 			if not stream.eof():
 				raise ValueError("HPP error response is bigger than expected")
-			raise common.RMCError(error)
+			raise RMCError(error)
 		
 		if call_id != stream.u32():
 			raise ValueError("HPP response has unexpected call id")

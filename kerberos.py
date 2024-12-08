@@ -1,10 +1,9 @@
 from Crypto.Cipher import ARC4
+from nintendo.nex import streams
 import struct
 import secrets
 import hashlib
 import hmac
-
-import streams
 
 
 class KeyDerivationOld:
@@ -64,20 +63,20 @@ class ClientTicket:
 		self.internal = b""
 	
 	@classmethod
-	def decrypt(cls, data, key):
+	def decrypt(cls, data, key, settings):
 		kerberos = KerberosEncryption(key)
 		decrypted = kerberos.decrypt(data)
-		stream = streams.StreamIn(decrypted)
+		stream = streams.StreamIn(decrypted, settings)
 		
 		ticket = cls()
-		ticket.session_key = stream.read(32)
+		ticket.session_key = stream.read(settings["kerberos.key_size"])
 		ticket.target = stream.pid()
 		ticket.internal = stream.buffer()
 		return ticket
 
-	def encrypt(self, key):
-		stream = streams.StreamOut()
-		if 32 != len(self.session_key):
+	def encrypt(self, key, settings):
+		stream = streams.StreamOut(settings)
+		if settings["kerberos.key_size"] != len(self.session_key):
 			raise ValueError("Incorrect session_key size")
 		stream.write(self.session_key)
 		stream.pid(self.target)
@@ -95,9 +94,9 @@ class ServerTicket:
 		self.session_key = None
 	
 	@classmethod
-	def decrypt(cls, data, key):
-		if 1 == 1:
-			stream = streams.StreamIn(data)
+	def decrypt(cls, data, key, settings):
+		if settings["kerberos.ticket_version"] == 1:
+			stream = streams.StreamIn(data, settings)
 			ticket_key = stream.buffer()
 			data = stream.buffer()
 			key = hashlib.md5(key + ticket_key).digest()
@@ -105,31 +104,31 @@ class ServerTicket:
 		kerberos = KerberosEncryption(key)
 		decrypted = kerberos.decrypt(data)
 		
-		stream = streams.StreamIn(decrypted)
+		stream = streams.StreamIn(decrypted, settings)
 		
 		ticket = cls()
 		ticket.timestamp = stream.datetime()
 		ticket.source = stream.pid()
-		ticket.session_key = stream.read(32)
+		ticket.session_key = stream.read(settings["kerberos.key_size"])
 		return ticket
 
-	def encrypt(self, key):
-		stream = streams.StreamOut()
+	def encrypt(self, key, settings):
+		stream = streams.StreamOut(settings)
 		stream.datetime(self.timestamp)
 		stream.pid(self.source)
-		if len(self.session_key) != 32:
+		if len(self.session_key) != settings["kerberos.key_size"]:
 			raise ValueError("Incorrect session_key length")
 		stream.write(self.session_key)
 
 		data = stream.get()
-		if 1:
+		if settings["kerberos.ticket_version"] == 1:
 			ticket_key = secrets.token_bytes(16)
 			final_key = hashlib.md5(key + ticket_key).digest()
 
 			kerberos = KerberosEncryption(final_key)
 			encrypted = kerberos.encrypt(data)
 			
-			stream = streams.StreamOut()
+			stream = streams.StreamOut(settings)
 			stream.buffer(ticket_key)
 			stream.buffer(encrypted)
 			return stream.get()
