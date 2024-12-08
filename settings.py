@@ -1,7 +1,8 @@
+from enum import Enum
 from common.cert_loader import CertificateLoader
 
 
-class Settings:
+class Settings(Enum):
 	TRANSPORT_UDP = 0
 	TRANSPORT_TCP = 1
 	TRANSPORT_WEBSOCKET = 2

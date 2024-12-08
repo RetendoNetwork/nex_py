@@ -6,11 +6,11 @@
 
 ## Features
 - [x] HPP
-- [ ] PRUDP
-   - [ ] Transport UDP
-   - [ ] PRUDPv0 (Friend Server & some 3DS Games)
-   - [ ] PRUDPv1 (Wii U & some 3DS Games)
-   - [ ] PRUDPLite (Switch)
+- [x] PRUDP
+   - [x] Transport UDP
+   - [x] PRUDPv0 (Friend Server & some 3DS Games)
+   - [x] PRUDPv1 (Wii U & some 3DS Games)
+   - [x] PRUDPLite (Switch)
 - [x] Kerberos
 - [x] RMC
 
