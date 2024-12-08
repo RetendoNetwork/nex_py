@@ -2,7 +2,9 @@
 - NEX Library for Wii U/3DS/Switch Games written in Python.
 
 ## Installation
-`pip install nex-retendo`
+```
+pip install nex-retendo
+```
 
 ## Features
 - [x] HPP
