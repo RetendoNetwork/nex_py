@@ -4,7 +4,7 @@ import secrets
 import hashlib
 import hmac
 
-from nex import streams
+from nex.streams import StreamIn, StreamOut
 
 
 class KeyDerivationOld:
@@ -67,7 +67,7 @@ class ClientTicket:
 	def decrypt(cls, data, key, settings):
 		kerberos = KerberosEncryption(key)
 		decrypted = kerberos.decrypt(data)
-		stream = streams.StreamIn(decrypted, settings)
+		stream = StreamIn(decrypted, settings)
 		
 		ticket = cls()
 		ticket.session_key = stream.read(settings["kerberos.key_size"])
@@ -76,7 +76,7 @@ class ClientTicket:
 		return ticket
 
 	def encrypt(self, key, settings):
-		stream = streams.StreamOut(settings)
+		stream = StreamOut(settings)
 		if settings["kerberos.key_size"] != len(self.session_key):
 			raise ValueError("Incorrect session_key size")
 		stream.write(self.session_key)
@@ -97,7 +97,7 @@ class ServerTicket:
 	@classmethod
 	def decrypt(cls, data, key, settings):
 		if settings["kerberos.ticket_version"] == 1:
-			stream = streams.StreamIn(data, settings)
+			stream = StreamIn(data, settings)
 			ticket_key = stream.buffer()
 			data = stream.buffer()
 			key = hashlib.md5(key + ticket_key).digest()
@@ -105,7 +105,7 @@ class ServerTicket:
 		kerberos = KerberosEncryption(key)
 		decrypted = kerberos.decrypt(data)
 		
-		stream = streams.StreamIn(decrypted, settings)
+		stream = StreamIn(decrypted, settings)
 		
 		ticket = cls()
 		ticket.timestamp = stream.datetime()
@@ -114,7 +114,7 @@ class ServerTicket:
 		return ticket
 
 	def encrypt(self, key, settings):
-		stream = streams.StreamOut(settings)
+		stream = StreamOut(settings)
 		stream.datetime(self.timestamp)
 		stream.pid(self.source)
 		if len(self.session_key) != settings["kerberos.key_size"]:
@@ -129,7 +129,7 @@ class ServerTicket:
 			kerberos = KerberosEncryption(final_key)
 			encrypted = kerberos.encrypt(data)
 			
-			stream = streams.StreamOut(settings)
+			stream = StreamOut(settings)
 			stream.buffer(ticket_key)
 			stream.buffer(encrypted)
 			return stream.get()
