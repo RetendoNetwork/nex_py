@@ -1,4 +1,4 @@
-from result_codes import ResultCodes
+from nex.result_codes import ResultCodes
 from streams import StreamOut, StreamIn
 from anynet import util
 import contextlib

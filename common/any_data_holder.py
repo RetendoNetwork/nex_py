@@ -1,4 +1,4 @@
-from streams import StreamOut
+from nex.streams import StreamOut
 
 
 class AnyDataHolder:

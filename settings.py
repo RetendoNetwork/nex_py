@@ -1,5 +1,6 @@
 from enum import Enum
-from common.cert_loader import CertificateLoader
+
+from nex.common.cert_loader import CertificateLoader
 
 
 class Settings(Enum):

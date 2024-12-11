@@ -1,5 +1,5 @@
-from errors import error_codes, error_names, ERROR_MASK
-from rmc import RMCError
+from nex.errors import error_codes, error_names, ERROR_MASK
+from nex.rmc import RMCError
 
 
 class ResultCodes:

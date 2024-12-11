@@ -1,8 +1,6 @@
-
 from Crypto.Cipher import ARC4
 from anynet import udp, tls, websocket, util, \
 	scheduler, streams, queue
-import kerberos, streams as streams_nex
 from compression.dummy import DummyCompression
 from compression.zlib import ZlibCompression
 from encryption.dummy import DummyEncryption
@@ -13,9 +11,10 @@ import struct
 import random
 import socket
 import anyio
-import zlib
 import hmac
 import time
+
+import nex.kerberos, nex.streams as streams_nex
 
 import logging
 logger = logging.getLogger(__name__)

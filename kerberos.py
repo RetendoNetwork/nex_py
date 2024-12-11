@@ -1,9 +1,10 @@
 from Crypto.Cipher import ARC4
-from nintendo.nex import streams
 import struct
 import secrets
 import hashlib
 import hmac
+
+from nex import streams
 
 
 class KeyDerivationOld:
