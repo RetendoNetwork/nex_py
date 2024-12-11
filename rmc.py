@@ -1,9 +1,10 @@
-from nex.result_codes import ResultCodes
-from streams import StreamOut, StreamIn
 from anynet import util
 import contextlib
 import struct
 import anyio
+
+from nex.result_codes import ResultCodes
+from nex.streams import StreamOut, StreamIn
 
 import logging
 logger = logging.getLogger(__name__)
