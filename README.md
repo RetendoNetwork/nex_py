@@ -1,5 +1,5 @@
-# NEX
-- NEX Library for Wii U/3DS/Switch Games written in Python.
+# NEX_PY
+- NEX Python Library for Wii U/3DS/Switch Games written in Python.
 
 ## Installation
 ```
